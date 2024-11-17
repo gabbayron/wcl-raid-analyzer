@@ -22,8 +22,6 @@ exports.fetchPlayerInfo = fetchPlayerInfo;
 exports.generateWarcraftLogsUrl = generateWarcraftLogsUrl;
 const axios_1 = __importDefault(require("axios"));
 const queries_1 = require("./queries");
-const CLIENT_ID = "9d715d63-aa2d-44ea-a813-c08222dceefd";
-const CLIENT_SECRET = "f5wrbS5EPb9FClSq7VCDoE5ewGeJxyx4TLJ4rW88";
 let accessToken = null;
 function authenticateWarcraftLogs() {
     return __awaiter(this, void 0, void 0, function* () {
@@ -33,7 +31,7 @@ function authenticateWarcraftLogs() {
             const response = yield axios_1.default.post("https://www.warcraftlogs.com/oauth/token", data, {
                 headers: {
                     Authorization: "Basic " +
-                        Buffer.from(`${CLIENT_ID}:${CLIENT_SECRET}`).toString("base64"),
+                        Buffer.from(`${process.env.CLIENT_ID}:${process.env.CLIENT_SECRET}`).toString("base64"),
                     "Content-Type": "application/x-www-form-urlencoded",
                 },
             });

@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.eventsQueryWithCasts = exports.fightsQuery = exports.tableQuery = exports.tableQueryDamageTaken = exports.eventsQuery = exports.playerInfoQuery = void 0;
+exports.fightsQuery = exports.tableQuery = exports.tableQueryDamageTaken = exports.eventsQuery = exports.playerInfoQuery = void 0;
 exports.playerInfoQuery = `
   query($logId: String!) {
     reportData {
@@ -53,6 +53,7 @@ exports.fightsQuery = `
   query($logId: String!) {
     reportData {
       report(code: $logId) {
+        code
         title
         startTime
         fights {
@@ -61,26 +62,6 @@ exports.fightsQuery = `
           endTime
           name
           kill
-        }
-      }
-    }
-  }
-`;
-exports.eventsQueryWithCasts = `
-  query($logId: String!, $startTime: Float!, $endTime: Float!) {
-    reportData {
-      report(code: $logId) {
-        events(
-          dataType: All, 
-          startTime: $startTime, 
-          endTime: $endTime, 
-        ) {
-          data
-          nextPageTimestamp
-        }
-        fights {
-          kill
-          name
         }
       }
     }
