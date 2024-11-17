@@ -59,6 +59,10 @@ client.on("messageCreate", async (message: any) => {
   const userId = message.author.id;
   const content = message.content.trim();
 
+  if (content?.toLowerCase() === "abort") {
+    return message.reply("Aborted");
+  }
+
   if (content.startsWith("!raidSummary")) {
     // Start the sequence for weekly summary
     userStates[userId] = { step: 1, logIds: [] };
@@ -281,7 +285,6 @@ async function generateWeeklyRaidSummary(logIds: string[]) {
   let totalDeaths = 0;
   let totalWipes = 0;
   const raidSummaries = [];
-  let playersMap: { [key: string]: string } = {};
   const deathsByPlayer: Record<string, number> = {};
   const raidsPerPlayer: Record<string, number> = {};
 
