@@ -16,8 +16,12 @@ export const TANKS = ["vis", "hoof", "hoov"];
 export const TARGET_CHANNEL_ID = "1304931116989546526";
 export const WEEKLY_SUMMARY_CHANNEL_ID = "1306746576529526885";
 
+export const DMG_DONE_FILTER = `encounterid not in (1206) and target.name NOT IN ("Rageface", "Crystal Prison", "Spirit of the Flame","Dreadflame") OR  (target.name IN ("Riplimb") AND target.spec != "Blood" AND target.spec != "Guardian")`;
+
 export const DEFAULT_FILTER =
   '(ability.id IN (99336, 98885, 99427, 99816, 99605, 99794, 97234, 99842, 998426, 99224, 98708, 98928, 98870, 100941, 98498, 99287, 100455, 99144, 97151, 99510, 99552, 100070))  OR  (ability.id IN (99844, 99308, 100024, 99931, 100794, 99758) AND target.spec != "Blood" AND target.spec != "Guardian")';
+
+export const WIPES_CUT_OFF = 6;
 
 export interface Fight {
   id: number;
@@ -51,39 +55,11 @@ export type DeathEntry = {
 export type PlayerMap = { [targetID: number]: string };
 
 export const RAID_ROSTER = {
-  "!Altecks": new Set([
-    "Alteckzz",
-    "Alteckz",
-    "Alteckzx",
-    "Altecksm",
-    "Altecksmx",
-    "Altecksmxz",
-  ]),
-  "!Amar": new Set([
-    "Amarw",
-    "Amarzing",
-    "Amarjr",
-    "Amarzíng",
-    "Amarchain",
-    "Amarlock",
-  ]),
-  "!Anfall": new Set([
-    "Anfall",
-    "Anfhalal",
-    "Anfallicc",
-    "Avfall",
-    "Anfallafel",
-    "Anfallrace",
-  ]),
+  "!Altecks": new Set(["Alteckzz", "Alteckz", "Alteckzx", "Altecksm", "Altecksmx", "Altecksmxz"]),
+  "!Amar": new Set(["Amarw", "Amarzing", "Amarjr", "Amarzíng", "Amarchain", "Amarlock"]),
+  "!Anfall": new Set(["Anfall", "Anfhalal", "Anfallicc", "Avfall", "Anfallafel", "Anfallrace"]),
   "!Baktus": new Set(["Baktus", "Bakttus", "Baktuss", "Firetus", "Firettus"]),
-  "!Barrekush": new Set([
-    "Barrekush",
-    "Barrekuush",
-    "Barrehash",
-    "Barrehush",
-    "Barrebanan",
-    "Barreblåbär",
-  ]),
+  "!Barrekush": new Set(["Barrekush", "Barrekuush", "Barrehash", "Barrehush", "Barrebanan", "Barreblåbär"]),
   "!Cab": new Set([
     "Fakecabs",
     "Fakecabss",
@@ -99,23 +75,8 @@ export const RAID_ROSTER = {
     "Zarzer",
     "Cab",
   ]),
-  "!Coach": new Set([
-    "Coachpriestb",
-    "Coachpriesta",
-    "Coachpriest",
-    "Coachshamb",
-    "Coachshamc",
-    "Coachshama",
-  ]),
-  "!Dannyp": new Set([
-    "Dannypmvp",
-    "Dannypdk",
-    "Dannypgrip",
-    "Dannypqt",
-    "Dannypxox",
-    "Dannypp",
-    "Phalek",
-  ]),
+  "!Coach": new Set(["Coachpriestb", "Coachpriesta", "Coachpriest", "Coachshamb", "Coachshamc", "Coachshama"]),
+  "!Dannyp": new Set(["Dannypmvp", "Dannypdk", "Dannypgrip", "Dannypqt", "Dannypxox", "Dannypp", "Phalek"]),
   "!Devil": new Set([
     "Devilmthree",
     "Devilmfour",
@@ -158,14 +119,7 @@ export const RAID_ROSTER = {
     "Exandro",
     "Exandrova",
   ]),
-  "!Fjeenzy": new Set([
-    "Fjeenzybow",
-    "Fjeenzyxbow",
-    "Fjeenzybowow",
-    "Fjeenzyp",
-    "Fjeenzyr",
-    "Fjeenzy",
-  ]),
+  "!Fjeenzy": new Set(["Fjeenzybow", "Fjeenzyxbow", "Fjeenzybowow", "Fjeenzyp", "Fjeenzyr", "Fjeenzy"]),
   "!Flare": new Set([
     "Flaredruid",
     "Flaresolaire",
@@ -180,38 +134,10 @@ export const RAID_ROSTER = {
     "Flareqq",
   ]),
   "!Frooma": new Set(["Qrepth", "Qwypth", "Qspth", "Qwepth"]),
-  "!Funkycut": new Set([
-    "Funkydecay",
-    "Funghidk",
-    "Funkydekay",
-    "Funkycut",
-    "Funkykut",
-    "Funkycutx",
-  ]),
-  "!Gnomeboy": new Set([
-    "Bendkone",
-    "Bendkthree",
-    "Bendktwo",
-    "Bengun",
-    "Benm",
-    "Benmthree",
-    "Benmtwo",
-    "Gnomeboy",
-  ]),
-  "!Goesting": new Set([
-    "Goestingptwo",
-    "Goestingptre",
-    "Goestingp",
-    "Goestingpfor",
-  ]),
-  "!Hadoogin": new Set([
-    "Hadoochadx",
-    "Doogivoltage",
-    "Hadooginahh",
-    "Hadootheed",
-    "Ppcdoogin",
-    "Hadootheedxx",
-  ]),
+  "!Funkycut": new Set(["Funkydecay", "Funghidk", "Funkydekay", "Funkycut", "Funkykut", "Funkycutx"]),
+  "!Gnomeboy": new Set(["Bendkone", "Bendkthree", "Bendktwo", "Bengun", "Benm", "Benmthree", "Benmtwo", "Gnomeboy"]),
+  "!Goesting": new Set(["Goestingptwo", "Goestingptre", "Goestingp", "Goestingpfor"]),
+  "!Hadoogin": new Set(["Hadoochadx", "Doogivoltage", "Hadooginahh", "Hadootheed", "Ppcdoogin", "Hadootheedxx"]),
   "!Holypalaswe": new Set([
     "Holypalaswe",
     "Holypalaswew",
@@ -220,20 +146,8 @@ export const RAID_ROSTER = {
     "Holypalasweu",
     "Holypalaswet",
   ]),
-  "!Itsmarcowl": new Set([
-    "Marcofotmxo",
-    "Marcothree",
-    "Marcofotmx",
-    "Itsmarcowl",
-    "Itsmarcofotm",
-  ]),
-  "!Julius": new Set([
-    "Juliusxp",
-    "Juliusp",
-    "Juliusw",
-    "Juliuswxd",
-    "Juliuswx",
-  ]),
+  "!Itsmarcowl": new Set(["Marcofotmxo", "Marcothree", "Marcofotmx", "Itsmarcowl", "Itsmarcofotm"]),
+  "!Julius": new Set(["Juliusxp", "Juliusp", "Juliusw", "Juliuswxd", "Juliuswx"]),
   "!Jyssi": new Set(["Jyssi", "Jyssid", "Jyssic"]),
   "!Kia": new Set([
     "Kia",
@@ -262,42 +176,12 @@ export const RAID_ROSTER = {
     "Killalock",
     "Killadots",
   ]),
-  "!Kroghelf": new Set([
-    "Kroghelf",
-    "Kroogghelf",
-    "Krooghelf",
-    "Kroghsnipes",
-    "Krogghers",
-    "Kroghp",
-    "Kroghsp",
-  ]),
+  "!Kroghelf": new Set(["Kroghelf", "Kroogghelf", "Krooghelf", "Kroghsnipes", "Krogghers", "Kroghp", "Kroghsp"]),
   "!Lexolas": new Set(["Lexddk", "Lexdkz", "Lexdkx"]),
-  "!Lyn": new Set([
-    "Lyndk",
-    "Lyndktwo",
-    "Lynrogue",
-    "Lynrr",
-    "Lynroguew",
-    "Lyenw",
-  ]),
-  "!Makki": new Set([
-    "Makkís",
-    "Makkisthree",
-    "Makkistwo",
-    "Makkiz",
-    "Makkiwl",
-  ]),
+  "!Lyn": new Set(["Lyndk", "Lyndktwo", "Lynrogue", "Lynrr", "Lynroguew", "Lyenw"]),
+  "!Makki": new Set(["Makkís", "Makkisthree", "Makkistwo", "Makkiz", "Makkiwl"]),
   "!Memento": new Set(["Secondmoon", "Mementoo", "Mementoomori"]),
-  "!Occbull": new Set([
-    "Occdk",
-    "Occdkx",
-    "Occdkxy",
-    "Occdruid",
-    "Occdruidx",
-    "Occdruidxy",
-    "Occmage",
-    "Occmagex",
-  ]),
+  "!Occbull": new Set(["Occdk", "Occdkx", "Occdkxy", "Occdruid", "Occdruidx", "Occdruidxy", "Occmage", "Occmagex"]),
   "!Peem": new Set([
     "Peemh",
     "Peemeep",
@@ -310,15 +194,7 @@ export const RAID_ROSTER = {
     "Peempek",
     "Peemforreal",
   ]),
-  "!Piggly": new Set([
-    "Mvpig",
-    "Pigowl",
-    "Pigowls",
-    "Pigowly",
-    "Espiggly",
-    "Pigmagen",
-    "Pigmage",
-  ]),
+  "!Piggly": new Set(["Mvpig", "Pigowl", "Pigowls", "Pigowly", "Espiggly", "Pigmagen", "Pigmage"]),
   "!Prospects": new Set(["Prosmage", "Prospekt", "Prospects", "Prossham"]),
   "!Rikkin": new Set([
     "Rikkindk",
@@ -347,32 +223,11 @@ export const RAID_ROSTER = {
     "Velikala",
     "Scarpabolt",
   ]),
-  "!Soma": new Set([
-    "Somashuto",
-    "Somaasashin",
-    "Somactre",
-    "Somaclone",
-    "Somactwo",
-  ]),
+  "!Soma": new Set(["Somashuto", "Somaasashin", "Somactre", "Somaclone", "Somactwo"]),
   "!Staedt": new Set(["Staedt", "Staedqtp", "Staedi", "Staedth"]),
-  "!Thalash": new Set([
-    "Thalashdk",
-    "Thalash",
-    "Thalashzug",
-    "Thalashx",
-    "Thalashidiot",
-    "Thalashglorp",
-  ]),
+  "!Thalash": new Set(["Thalashdk", "Thalash", "Thalashzug", "Thalashx", "Thalashidiot", "Thalashglorp"]),
   "!Uriosdruid": new Set(["Uriosdruid", "Uriossham"]),
-  "!Visp": new Set([
-    "Visb",
-    "Visv",
-    "Flutegirlx",
-    "Visps",
-    "Visr",
-    "Visg",
-    "Vispdeeznuts",
-  ]),
+  "!Visp": new Set(["Visb", "Visv", "Flutegirlx", "Visps", "Visr", "Visg", "Vispdeeznuts"]),
   "!Yarwi": new Set(["Yarwidruid", "Yarwi", "Yarwitwo"]),
   "!Yebb": new Set(["Jebenched", "Jebemtisalv", "Yebber", "Yebb"]),
 };
