@@ -1,4 +1,4 @@
-import { Client, GatewayIntentBits } from "discord.js";
+import { CacheType, Client, GatewayIntentBits, Interaction, REST, Routes } from "discord.js";
 import {
   authenticateWarcraftLogs,
   fetchFights,
@@ -7,10 +7,12 @@ import {
   fetchDeathsAndWipes,
   fetchPlayerInfo,
   generateWarcraftLogsUrl,
+  createDmgDoneUrl,
 } from "./warcraftLogs";
 import {
   classIcons,
   DEFAULT_FILTER,
+  DMG_DONE_FILTER,
   Fight,
   PlayerMap,
   TARGET_CHANNEL_ID,
@@ -22,9 +24,11 @@ import {
   sortByValueDescending,
   extractLogId,
   getKeyByCharacterName,
+  formatRaidDate,
 } from "./utils";
 import dotenv from "dotenv";
 import { fetchRandomFact } from "./randomFact";
+import { RAID_COMMAND, RAID_SUMMARY_COMMAND } from "./commands/raid-command";
 
 // Load environment variables
 dotenv.config();
@@ -32,11 +36,7 @@ authenticateWarcraftLogs();
 
 // Create a new Discord client instance
 const client = new Client({
-  intents: [
-    GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent,
-  ],
+  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent],
 });
 
 // Track the user interaction states
@@ -49,120 +49,92 @@ const userStates: {
   };
 } = {};
 
-client.once("ready", () => {
-  console.log("Raid Analyzer Bot is online!");
-});
+const commands = [RAID_COMMAND, RAID_SUMMARY_COMMAND].map((command) => command.data.toJSON());
 
-client.on("messageCreate", async (message: any) => {
-  if (message.author.bot) return;
+const rest = new REST({ version: "10" }).setToken(process.env.DISCORD_TOKEN!);
 
-  const userId = message.author.id;
-  const content = message.content.trim();
+(async () => {
+  try {
+    console.log("Started refreshing application (/) commands.");
+    await rest.put(Routes.applicationCommands(`1304544325840928788`), {
+      body: commands,
+    });
 
-  if (content?.toLowerCase() === "abort") {
-    return message.reply("Aborted");
+    console.log("Successfully reloaded application (/) commands.");
+  } catch (error) {
+    console.error(error);
+  }
+})();
+
+client.on("interactionCreate", async (interaction) => {
+  if (!interaction.isCommand()) return;
+
+  await interaction.deferReply({ ephemeral: true });
+
+  if (interaction.commandName === "raid") {
+    await handleSingleRaidSummary(interaction);
   }
 
-  if (content.startsWith("!raidSummary")) {
-    // Start the sequence for weekly summary
-    userStates[userId] = { step: 1, logIds: [] };
-    return message.reply(
-      "Please provide the log URLs or log IDs separated by spaces:",
-    );
-  }
-
-  if (content.startsWith("!raid")) {
-    // Start the sequence for individual raid analysis
-    userStates[userId] = { step: 1 };
-    return message.reply("Please provide the log URL or log ID:");
-  }
-
-  // Check if the user is in the middle of a sequence
-  if (userStates[userId]) {
-    const userState = userStates[userId];
-
-    if (userState.step === 1) {
-      if (userState.logIds) {
-        // Step 1 for weekly summary: Receive multiple log IDs
-        const logIds = content.split(" ").map(extractLogId).filter(Boolean);
-        if (logIds.length === 0) {
-          return message.reply(
-            "Invalid input. Please provide valid log IDs or URLs.",
-          );
-        }
-
-        userState.logIds = logIds;
-        userState.step = 2;
-        message.reply(
-          `Received ${logIds.length} log IDs. Generating weekly summary...`,
-        );
-
-        const weeklySummary = await generateWeeklyRaidSummary(logIds);
-        const targetChannel: any = client.channels.cache.get(
-          WEEKLY_SUMMARY_CHANNEL_ID,
-        );
-
-        await targetChannel.send(weeklySummary);
-
-        delete userStates[userId];
-      } else {
-        // Step 1 for individual raid: Receive single log ID
-        const logId = extractLogId(content);
-        if (!logId) {
-          return message.reply(
-            "Invalid log input. Please provide log ID or full log URL.",
-          );
-        }
-
-        userState.logId = logId;
-        userState.step = 2;
-        return message.reply(
-          "Got the log ID. Now, please specify the damage taken filter (or type '1' for default filter):",
-        );
-      }
-    } else if (userState.step === 2) {
-      // Step 2 for individual raid: Receive the damage taken filter
-      const dmgTakenFilterExpression =
-        content.toLowerCase() === "1" ? DEFAULT_FILTER : content;
-      userState.dmgTakenFilterExpression = dmgTakenFilterExpression;
-
-      const randomJoke = await fetchRandomFact();
-      const userName = message.author.globalName;
-      message.reply(
-        `Analyzing request ${userName}, Did you know, ${randomJoke}`,
-      );
-
-      // Generate and send the individual raid summary
-      const raidSummary = await generateRaidSummary(
-        userState.logId!,
-        dmgTakenFilterExpression,
-      );
-
-      const targetChannel: any = client.channels.cache.get(TARGET_CHANNEL_ID);
-      await targetChannel.send(raidSummary);
-
-      // Clear the user state after sending the summary
-      delete userStates[userId];
-    }
+  if (interaction.commandName === "weekly_raids_summary") {
+    await handleWeeklyRaidsSummary(interaction);
   }
 });
+
+const handleWeeklyRaidsSummary = async (interaction: Interaction<CacheType>) => {
+  if (!interaction.isCommand()) return;
+
+  const providedLogIds = interaction.options.get("log_ids")?.value as string;
+  const username = interaction.user.globalName;
+
+  const logIdsArray = providedLogIds.split(" ").map(extractLogId).filter(Boolean) as string[];
+
+  await interaction.followUp({
+    content: `Analyzing request ${username}.Received ${logIdsArray.length} log IDs. Generating weekly summary...`,
+  });
+
+  const weeklySummary = await generateWeeklyRaidSummary(logIdsArray);
+  const weeklySummaryChannel: any = client.channels.cache.get(WEEKLY_SUMMARY_CHANNEL_ID);
+  await weeklySummaryChannel.send(weeklySummary);
+
+  await interaction.followUp({
+    content: `Details have been sent to the specified channel: ${weeklySummaryChannel}`,
+    ephemeral: true,
+  });
+};
+const handleSingleRaidSummary = async (interaction: Interaction<CacheType>) => {
+  if (!interaction.isCommand()) return;
+
+  const raidSummaryChannel: any = client.channels.cache.get(TARGET_CHANNEL_ID);
+
+  const providedLogId = interaction.options.get("log_id")?.value as string;
+  const logId = extractLogId(providedLogId) as string;
+  const filter = interaction.options.get("filter")?.value as string;
+  const username = interaction.user.globalName;
+
+  const dmgTakenFilterExpression = filter.toLowerCase() === "1" ? DEFAULT_FILTER : filter;
+
+  const randomJoke = await fetchRandomFact();
+
+  await interaction.followUp({
+    content: `Analyzing request ${username}, Did you know, ${randomJoke}`,
+  });
+
+  const raidSummary = await generateRaidSummary(logId, dmgTakenFilterExpression);
+
+  await raidSummaryChannel.send(raidSummary);
+
+  await interaction.followUp({
+    content: `Details have been sent to the specified channel: ${raidSummaryChannel}`,
+    ephemeral: true,
+  });
+};
 
 // Generate the summary message content for the individual raid analysis
-async function generateRaidSummary(
-  logId: string,
-  dmgTakenFilterExpression: string,
-) {
+async function generateRaidSummary(logId: string, dmgTakenFilterExpression: string) {
   // Fetch raid info and player info in parallel
-  const [raidData, playerMap] = await Promise.all([
-    fetchFights(logId),
-    fetchPlayerInfo(logId),
-  ]);
+  const [raidData, playerMap] = await Promise.all([fetchFights(logId), fetchPlayerInfo(logId)]);
 
-  const {
-    fights,
-    title,
-    startTime: raidStartTime,
-  } = raidData as { fights: Fight[]; title: string; startTime: number };
+  const { fights, title, startTime: raidStartTime } = raidData as { fights: Fight[]; title: string; startTime: number };
   if (!fights || fights.length === 0) {
     return { raidSummary: "No fights found for this log." };
   }
@@ -176,12 +148,8 @@ async function generateRaidSummary(
   const playerDeaths: { [key: string]: number } = {};
 
   // Filter out invalid fights in advance
-  const validFights = fights.filter(
-    (fight) => !(fight.startTime === 0 && fight.endTime === 0),
-  );
-  const raidDuration =
-    (validFights[validFights.length - 1].endTime - validFights[0].startTime) /
-    1000;
+  const validFights = getValidFights(fights);
+  const raidDuration = calculateRaidDuration(validFights);
 
   // Fetch all data for each fight concurrently
   await Promise.all(
@@ -190,7 +158,7 @@ async function generateRaidSummary(
 
       // Fetch damage done, damage taken, and death/wipe data concurrently
       const [dmgDoneData, dmgTakenData, deathAndWipeData] = await Promise.all([
-        fetchDamageData(logId, startTime, endTime),
+        fetchDamageData(logId, startTime, endTime, DMG_DONE_FILTER),
         fetchDamageTakenData(logId, fightId, dmgTakenFilterExpression),
         fetchDeathsAndWipes(logId, startTime, endTime),
       ]);
@@ -198,16 +166,14 @@ async function generateRaidSummary(
       // Process damage done
       dmgDoneData?.data?.entries.forEach((entry: any) => {
         const playerName = `${entry.name}_${entry.type}`;
-        playerDamage[playerName] =
-          (playerDamage[playerName] || 0) + entry.total;
+        playerDamage[playerName] = (playerDamage[playerName] || 0) + entry.total;
         totalDamage += entry.total;
       });
 
       // Process damage taken
       dmgTakenData?.data?.entries.forEach((entry: any) => {
         const playerName = `${entry.name}_${entry.type}`;
-        playerDamageTaken[playerName] =
-          (playerDamageTaken[playerName] || 0) + entry.total;
+        playerDamageTaken[playerName] = (playerDamageTaken[playerName] || 0) + entry.total;
         totalDamageTaken += entry.total;
       });
 
@@ -238,10 +204,7 @@ async function generateRaidSummary(
 
   // Summaries
   const raidRoster = Object.entries(groupedByClass)
-    .map(
-      ([playerClass, players]) =>
-        `${classIcons[playerClass]} ${playerClass}: ${players.join(", ")}`,
-    )
+    .map(([playerClass, players]) => `${classIcons[playerClass]} ${playerClass}: ${players.join(", ")}`)
     .join("\n");
 
   const dmgDealersSummary = sortedDamageDealers
@@ -269,14 +232,11 @@ async function generateRaidSummary(
     })
     .join("\n");
 
-  const formattedDate = new Date(raidStartTime).toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
+  const formattedDate = formatRaidDate(raidStartTime);
 
   const WclUrl = await generateWarcraftLogsUrl(logId, dmgTakenFilterExpression);
-  return `**${title} - ${formattedDate} - https://classic.warcraftlogs.com/reports/${logId}\n**\n**Roster**\n${raidRoster}\n\n**Raid Duration**: ${formatDuration(raidDuration)}\n**Total Damage Done**: ${numberWithCommas(totalDamage)}\n**Total Avoidable Damage Taken**: ${numberWithCommas(totalDamageTaken)}\n**Total Deaths**: ${totalDeaths}\n**Total Wipes**: ${totalWipes}\n\n**Top 10 DPS**:\n${dmgDealersSummary}\n\n**Top 10 Avoidable Damage Taken**:\n${dmgTakenSummary}\n\n**Deaths by Player (top 5)**:\n${deathsSummary}\n\n**Damage Taken Log breakdown** ${WclUrl}\n\n`;
+  const dmgDoneUrl = await createDmgDoneUrl(logId, DMG_DONE_FILTER);
+  return `**${title} - ${formattedDate} - ${dmgDoneUrl}\n**\n**Roster**\n${raidRoster}\n\n**Raid Duration**: ${formatDuration(raidDuration)}\n**Total Damage Done**: ${numberWithCommas(totalDamage)}\n**Total Avoidable Damage Taken**: ${numberWithCommas(totalDamageTaken)}\n**Total Deaths**: ${totalDeaths}\n**Total Wipes**: ${totalWipes}\n\n**Top 10 DPS**:\n${dmgDealersSummary}\n\n**Top 10 Avoidable Damage Taken**:\n${dmgTakenSummary}\n\n**Deaths by Player (top 5)**:\n${deathsSummary}\n\n**Damage Taken Log breakdown** ${WclUrl}\n\n`;
 }
 
 // Generate the weekly summary
@@ -313,16 +273,11 @@ async function generateWeeklyRaidSummary(logIds: string[]) {
     let wipes = 0;
 
     // Filter out invalid fights where startTime and endTime are both 0
-    const validFights = fights.filter(
-      (fight) => !(fight.startTime === 0 && fight.endTime === 0),
-    );
+    const validFights = getValidFights(fights);
 
     if (validFights.length > 0) {
       // Calculate raid duration based on valid fights
-      raidDuration =
-        (validFights[validFights.length - 1].endTime -
-          validFights[0].startTime) /
-        1000;
+      raidDuration = calculateRaidDuration(validFights);
 
       // Fetch deaths and wipes data for all valid fights in parallel
       const eventsData = await Promise.all(
@@ -352,20 +307,15 @@ async function generateWeeklyRaidSummary(logIds: string[]) {
     totalDuration += raidDuration;
     totalDeaths += deaths;
     totalWipes += wipes;
-    const formattedDate = new Date(raidStartTime).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
+
+    const formattedDate = formatRaidDate(raidStartTime);
 
     raidSummaries.push(
       `**${title} - ${formattedDate} - https://classic.warcraftlogs.com/reports/${logIds[i]}**\nRaid Duration: ${formatDuration(raidDuration)}\nWipes: ${wipes}\nDeaths: ${deaths}\n`,
     );
   }
 
-  const allPlayersParticipated = Object.values(playersPerLog).flatMap(
-    (players) => Object.values(players),
-  );
+  const allPlayersParticipated = Object.values(playersPerLog).flatMap((players) => Object.values(players));
 
   const allPlayersParticipatedSet = new Set(allPlayersParticipated);
 
@@ -389,7 +339,16 @@ async function generateWeeklyRaidSummary(logIds: string[]) {
     .map(([key, value]) => `${key}: ${value} - Splits : ${raidsPerPlayer[key]}`)
     .join("\n");
 
-  return `**Weekly Raid Summary**\n${raidSummaries.join("\n")}\n**Average Raid Duration**: ${formatDuration(averageDuration)}\n**Average Deaths per Raid**: ${averageDeaths.toFixed(2)}\n**Total amount of raids:** ${raidSummaries.length}\n\n**Top 10 deaths by player**:\n${sortedDeathsByPlayersString}`;
+  return `**Weekly Raid Summary**\n${raidSummaries.join("\n")}\n**Average Raid Duration**: ${formatDuration(averageDuration)}\n**Average Deaths per Raid**: ${averageDeaths.toFixed(0)}\n**Total amount of raids:** ${raidSummaries.length}\n\n**Top 10 deaths by player**:\n${sortedDeathsByPlayersString}`;
 }
 // Login to Discord with your client's token
 client.login(process.env.DISCORD_TOKEN);
+
+function getValidFights(fights: Fight[]): Fight[] {
+  return fights.filter((fight) => !(fight.startTime === 0 && fight.endTime === 0));
+}
+
+function calculateRaidDuration(fights: Fight[]): number {
+  if (fights.length === 0) return 0;
+  return (fights[fights.length - 1].endTime - fights[0].startTime) / 1000;
+}

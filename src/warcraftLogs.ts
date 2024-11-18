@@ -1,12 +1,6 @@
 import axios from "axios";
-import {
-  eventsQuery,
-  fightsQuery,
-  playerInfoQuery,
-  tableQuery,
-  tableQueryDamageTaken,
-} from "./queries";
-import { PlayerMap } from "./constants";
+import { eventsQuery, fightsQuery, playerInfoQuery, tableQuery, tableQueryDamageTaken } from "./queries";
+import { PlayerMap, WIPES_CUT_OFF } from "./constants";
 
 let accessToken: string | null = null;
 
@@ -15,20 +9,13 @@ export async function authenticateWarcraftLogs() {
     const data = new URLSearchParams();
     data.append("grant_type", "client_credentials");
 
-    const response = await axios.post(
-      "https://www.warcraftlogs.com/oauth/token",
-      data,
-      {
-        headers: {
-          Authorization:
-            "Basic " +
-            Buffer.from(
-              `${process.env.CLIENT_ID}:${process.env.CLIENT_SECRET}`,
-            ).toString("base64"),
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
+    const response = await axios.post("https://www.warcraftlogs.com/oauth/token", data, {
+      headers: {
+        Authorization:
+          "Basic " + Buffer.from(`${process.env.CLIENT_ID}:${process.env.CLIENT_SECRET}`).toString("base64"),
+        "Content-Type": "application/x-www-form-urlencoded",
       },
-    );
+    });
     accessToken = response.data.access_token;
     console.log("Authenticated with Warcraft Logs API");
   } catch (error) {
@@ -82,20 +69,18 @@ export async function fetchDamageData(
   logId: string,
   startTime: number,
   endTime: number,
+  filterExpression: string = "",
 ): Promise<any> {
   const data = await fetchWarcraftLogsData(tableQuery, {
     logId,
     startTime,
     endTime,
+    filterExpression,
   });
   return data?.reportData.report.table || null;
 }
 
-export async function fetchDamageTakenData(
-  logId: string,
-  fightID: number,
-  filterExpression?: string,
-): Promise<any> {
+export async function fetchDamageTakenData(logId: string, fightID: number, filterExpression?: string): Promise<any> {
   const data = await fetchWarcraftLogsData(tableQueryDamageTaken, {
     logId,
     fightID,
@@ -107,13 +92,10 @@ export async function fetchDamageTakenData(
     allEntries.map((entry: any) => {
       entry.total = 0;
       entry.abilities.forEach((ability: any) => {
-        const totalReducedExists =
-          ability.totalReduced || ability.totalReduced === 0;
+        const totalReducedExists = ability.totalReduced || ability.totalReduced === 0;
         return {
           ...entry,
-          total: (entry.total += totalReducedExists
-            ? ability.totalReduced
-            : ability.total),
+          total: (entry.total += totalReducedExists ? ability.totalReduced : ability.total),
         };
       });
     });
@@ -123,11 +105,7 @@ export async function fetchDamageTakenData(
   return { data: { entries: [] } };
 }
 
-export async function fetchDeathsAndWipes(
-  logId: string,
-  startTime: number,
-  endTime: number,
-): Promise<any> {
+export async function fetchDeathsAndWipes(logId: string, startTime: number, endTime: number): Promise<any> {
   const data = await fetchWarcraftLogsData(eventsQuery, {
     logId,
     startTime,
@@ -138,7 +116,9 @@ export async function fetchDeathsAndWipes(
 
 export async function fetchPlayerInfo(logId: string): Promise<PlayerMap> {
   const data = await fetchWarcraftLogsData(playerInfoQuery, { logId });
-  const players = data.reportData.report.masterData.actors;
+  const players = data.reportData.report.masterData.actors.filter(
+    (player: { icon: string }) => player.icon !== "Unknown",
+  );
   const playerMap: { [id: number]: string } = {};
   players.forEach((player: any) => {
     playerMap[player.id] = player.name;
@@ -146,18 +126,23 @@ export async function fetchPlayerInfo(logId: string): Promise<PlayerMap> {
   return playerMap;
 }
 
-export async function generateWarcraftLogsUrl(
-  logId: string,
-  filter: string,
-  options = 38,
-) {
+export async function generateWarcraftLogsUrl(logId: string, filter: string, options = 38) {
   const baseUrl = "https://classic.warcraftlogs.com/reports/";
 
   // Create the URL with the provided expression and options
-  const url = `${baseUrl}${logId}#boss=-3&difficulty=0&type=damage-taken&pins=2%24Off%24%23244F4B%24expression%24${encodeURIComponent(filter)}&options=${options}&cutoff=6`;
-  const { data: shortenedUrl } = await axios.get(
-    `https://tinyurl.com/api-create.php?url=${encodeURIComponent(url)}`,
-  );
+  const url = `${baseUrl}${logId}#boss=-3&difficulty=0&type=damage-taken&pins=2%24Off%24%23244F4B%24expression%24${encodeURIComponent(filter)}&options=${options}&cutoff=${WIPES_CUT_OFF}`;
+  const { data: shortenedUrl } = await axios.get(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(url)}`);
+
+  return shortenedUrl;
+}
+
+export async function createDmgDoneUrl(logId: string, filter: string): Promise<string> {
+  const baseUrl = "https://classic.warcraftlogs.com/reports/";
+
+  const encodedExpression = encodeURIComponent(filter);
+  const url = `${baseUrl}${logId}#boss=-3&difficulty=0&cutoff=${WIPES_CUT_OFF}&pins=2%24Off%24%23244F4B%24expression%24${encodedExpression}`;
+
+  const { data: shortenedUrl } = await axios.get(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(url)}`);
 
   return shortenedUrl;
 }
