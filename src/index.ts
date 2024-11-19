@@ -25,6 +25,7 @@ import {
   extractLogId,
   getKeyByCharacterName,
   formatRaidDate,
+  sendLongMessage,
 } from "./utils";
 import dotenv from "dotenv";
 import { fetchRandomFact } from "./randomFact";
@@ -94,7 +95,7 @@ const handleWeeklyRaidsSummary = async (interaction: Interaction<CacheType>) => 
 
   const weeklySummary = await generateWeeklyRaidSummary(logIdsArray);
   const weeklySummaryChannel: any = client.channels.cache.get(WEEKLY_SUMMARY_CHANNEL_ID);
-  await weeklySummaryChannel.send(weeklySummary);
+  await sendLongMessage(weeklySummaryChannel, weeklySummary);
 
   await interaction.followUp({
     content: `Details have been sent to the specified channel: ${weeklySummaryChannel}`,
@@ -331,15 +332,23 @@ async function generateWeeklyRaidSummary(logIds: string[]) {
   const averageDuration = totalDuration / logIds.length;
   const averageDeaths = totalDeaths / logIds.length;
 
-  const sortedDeathsByPlayersObj = Object.entries(deathsByPlayer)
-    .slice(0, 15)
-    .sort(([, valueA], [, valueB]) => valueB - valueA);
+  const sortedPlayersByRatio = Object.keys(deathsByPlayer)
+    .map((key) => ({
+      player: key,
+      deaths: deathsByPlayer[key],
+      splits: raidsPerPlayer[key] || 1, // Avoid division by zero
+      ratio: deathsByPlayer[key] / (raidsPerPlayer[key] || 1),
+    }))
+    .sort((a, b) => b.ratio - a.ratio);
 
-  const sortedDeathsByPlayersString = sortedDeathsByPlayersObj
-    .map(([key, value]) => `${key}: ${value} - Splits : ${raidsPerPlayer[key]}`)
+  const sortedDeathsByPlayersString = sortedPlayersByRatio
+    .map(
+      ({ player, deaths, splits, ratio }) =>
+        `**${player}**: ${deaths} Deaths, ${splits} Splits, **Ratio: ${ratio.toFixed(2)}**`,
+    )
     .join("\n");
 
-  return `**Weekly Raid Summary**\n${raidSummaries.join("\n")}\n**Average Raid Duration**: ${formatDuration(averageDuration)}\n**Average Deaths per Raid**: ${averageDeaths.toFixed(0)}\n**Total amount of raids:** ${raidSummaries.length}\n\n**Top 10 deaths by player**:\n${sortedDeathsByPlayersString}`;
+  return `**Weekly Raid Summary**\n${raidSummaries.join("\n")}\n**Average Raid Duration**: ${formatDuration(averageDuration)}\n**Average Deaths per Raid**: ${averageDeaths.toFixed(0)}\n**Total amount of raids:** ${raidSummaries.length}\n\n**Deaths/Splits Ratio**:\n${sortedDeathsByPlayersString}`;
 }
 // Login to Discord with your client's token
 client.login(process.env.DISCORD_TOKEN);

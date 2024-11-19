@@ -1,3 +1,4 @@
+import { TextChannel } from "discord.js";
 import { RAID_ROSTER } from "./constants";
 
 // Helper function to add commas to numbers (e.g., 1000 -> 1,000)
@@ -43,4 +44,10 @@ export function formatRaidDate(timestamp: number): string {
     month: "short",
     day: "numeric",
   });
+}
+export async function sendLongMessage(channel: TextChannel, message: string) {
+  const chunkSize = 2000;
+  for (let i = 0; i < message.length; i += chunkSize) {
+    await channel.send(message.slice(i, i + chunkSize));
+  }
 }
