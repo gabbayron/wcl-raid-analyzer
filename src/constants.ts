@@ -16,7 +16,7 @@ export const TANKS = ["vis", "hoof", "hoov"];
 export const TARGET_CHANNEL_ID = "1304931116989546526";
 export const WEEKLY_SUMMARY_CHANNEL_ID = "1306746576529526885";
 
-export const DMG_DONE_FILTER = `encounterid not in (1206) and target.name NOT IN ("Rageface", "Crystal Prison", "Spirit of the Flame","Dreadflame") OR  (target.name IN ("Riplimb") AND target.spec != "Blood" AND target.spec != "Guardian")`;
+export const DMG_DONE_FILTER = `encounterid not in (1206) and target.name NOT IN ("Rageface", "Crystal Prison", "Spirit of the Flame","Dreadflame","Fragment of Rhyolith") OR  (target.name IN ("Riplimb") AND target.spec != "Blood" AND target.spec != "Guardian")`;
 
 export const DEFAULT_FILTER =
   '(ability.id IN (99336, 98885, 99427, 99816, 99605, 99794, 97234, 99842, 998426, 99224, 98708, 98928, 98870, 100941, 98498, 99287, 100455, 99144, 97151, 99510, 99552, 100070))  OR  (ability.id IN (99844, 99308, 100024, 99931, 100794, 99758) AND target.spec != "Blood" AND target.spec != "Guardian")';
@@ -216,6 +216,7 @@ export const RAID_ROSTER = {
     "Scarpadktwo",
     "Scarpazug",
     "Scarpdktre",
+    "Scarpadktre",
     "Scarpafurrie",
     "Brofísh",
     "Vendkala",
