@@ -17,16 +17,6 @@ const client = new Client({
   intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent],
 });
 
-// Track the user interaction states
-const userStates: {
-  [userId: string]: {
-    step: number;
-    logId?: string;
-    dmgTakenFilterExpression?: string;
-    logIds?: string[];
-  };
-} = {};
-
 const commands = [RAID_COMMAND, RAID_SUMMARY_COMMAND].map((command) => command.data.toJSON());
 
 const rest = new REST({ version: "10" }).setToken(process.env.DISCORD_TOKEN!);
@@ -107,7 +97,4 @@ const handleSingleRaidSummary = async (interaction: Interaction<CacheType>) => {
   });
 };
 
-// Generate the weekly summary
-
-// Login to Discord with your client's token
 client.login(process.env.DISCORD_TOKEN);
