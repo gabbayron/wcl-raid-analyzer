@@ -1,6 +1,6 @@
 import axios from "axios";
 import { eventsQuery, fightsQuery, playerInfoQuery, tableQuery, tableQueryDamageTaken } from "./queries";
-import { PlayerMap, WIPES_CUT_OFF } from "./constants";
+import { Fight, PlayerMap, WIPES_CUT_OFF } from "./constants";
 
 let accessToken: string | null = null;
 
@@ -145,4 +145,13 @@ export async function createDmgDoneUrl(logId: string, filter: string): Promise<s
   const { data: shortenedUrl } = await axios.get(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(url)}`);
 
   return shortenedUrl;
+}
+
+export function getValidFights(fights: Fight[]): Fight[] {
+  return fights.filter((fight) => !(fight.startTime === 0 && fight.endTime === 0));
+}
+
+export function calculateRaidDuration(fights: Fight[]): number {
+  if (fights.length === 0) return 0;
+  return (fights[fights.length - 1].endTime - fights[0].startTime) / 1000;
 }
