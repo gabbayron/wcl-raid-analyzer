@@ -1,5 +1,23 @@
-import { classIcons, DMG_DONE_FILTER, Fight } from "../constants";
-import { formatDuration, formatRaidDate, numberWithCommas, sortByValueDescending } from "../utils";
+import { generateChart } from "../charts/chart";
+import {
+  CLASS_COLORS,
+  classIcons,
+  DAMAGE_SCHOOL_COLORS,
+  DMG_DONE_FILTER,
+  Fight,
+  TOP_DMG_TAKEN_BY_ABILITY_CHART_TITLE,
+  TOP_DMG_TAKEN_CHART_DESCRIPTION,
+  TOP_DMG_TAKEN_CHART_TITLE,
+  TOP_DPS_CHART_DESCRIPTION,
+  TOP_DPS_CHART_TITLE,
+} from "../constants";
+import {
+  formatDuration,
+  formatRaidDate,
+  numberWithCommas,
+  sortByValueDescending,
+  sortObjectByValueDesc,
+} from "../utils";
 import {
   calculateRaidDuration,
   createDmgDoneUrl,
@@ -28,6 +46,7 @@ export async function generateRaidSummary(logId: string, dmgTakenFilterExpressio
   const playerDamage: { [key: string]: number } = {};
   const playerDamageTaken: { [key: string]: number } = {};
   const playerDeaths: { [key: string]: number } = {};
+  const dmgTakenByAbility: { [key: string]: number } = {};
 
   // Filter out invalid fights in advance
   const validFights = getValidFights(fights);
@@ -54,6 +73,26 @@ export async function generateRaidSummary(logId: string, dmgTakenFilterExpressio
       // Process damage taken
       dmgTakenData?.data?.entries.forEach((entry: any) => {
         const playerName = `${entry.name}_${entry.type}`;
+        entry.abilities.forEach(
+          ({
+            name,
+            total,
+            totalReduced,
+            type,
+          }: {
+            name: string;
+            total: number;
+            totalReduced: number;
+            type: number;
+          }) => {
+            const indexedName = `${name}_${type}`;
+            if (dmgTakenByAbility[indexedName]) {
+              dmgTakenByAbility[indexedName] += totalReduced || total;
+            } else {
+              dmgTakenByAbility[indexedName] = totalReduced || total;
+            }
+          },
+        );
         playerDamageTaken[playerName] = (playerDamageTaken[playerName] || 0) + entry.total;
         totalDamageTaken += entry.total;
       });
@@ -75,6 +114,7 @@ export async function generateRaidSummary(logId: string, dmgTakenFilterExpressio
   // Sorting and grouping
   const sortedDamageTaken = sortByValueDescending(playerDamageTaken);
   const sortedDamageDealers = sortByValueDescending(playerDamage);
+
   const groupedByClass: { [classType: string]: string[] } = {};
 
   sortedDamageTaken.forEach((player) => {
@@ -82,6 +122,21 @@ export async function generateRaidSummary(logId: string, dmgTakenFilterExpressio
     if (!groupedByClass[playerClass]) groupedByClass[playerClass] = [];
     groupedByClass[playerClass].push(playerName);
   });
+
+  const dmgDealtToChart: { name: string; total: number; color: string }[] = [];
+  const dmgTakenDataToChart: { name: string; total: number; color: string }[] = [];
+  const dmgTakenByAbilityChartData: { name: string; total: number; color: string }[] = [];
+
+  const sortedDmgTakenByAbility = sortObjectByValueDesc(dmgTakenByAbility);
+
+  for (const [key, value] of Object.entries(sortedDmgTakenByAbility)) {
+    const [name, type] = key.split("_");
+    dmgTakenByAbilityChartData.push({
+      name,
+      total: value,
+      color: DAMAGE_SCHOOL_COLORS[type] || "red",
+    });
+  }
 
   // Summaries
   const raidRoster = Object.entries(groupedByClass)
@@ -92,6 +147,13 @@ export async function generateRaidSummary(logId: string, dmgTakenFilterExpressio
     .slice(0, 10)
     .map((player) => {
       const [playerName, playerClass] = player.split("_");
+
+      dmgDealtToChart.push({
+        name: `${playerName}`,
+        total: playerDamage[player],
+        color: CLASS_COLORS[playerClass],
+      });
+
       return `${classIcons[playerClass] || ""} ${playerName}: ${numberWithCommas(playerDamage[player])}`;
     })
     .join("\n");
@@ -100,9 +162,29 @@ export async function generateRaidSummary(logId: string, dmgTakenFilterExpressio
     .slice(0, 10)
     .map((player) => {
       const [playerName, playerClass] = player.split("_");
+      dmgTakenDataToChart.push({
+        name: `${playerName}`,
+        total: playerDamageTaken[player],
+        color: CLASS_COLORS[playerClass],
+      });
+
       return `${classIcons[playerClass] || ""} ${playerName}: ${numberWithCommas(playerDamageTaken[player])}`;
     })
     .join("\n");
+
+  const dmgChart = await generateChart(dmgDealtToChart, TOP_DPS_CHART_TITLE, TOP_DPS_CHART_DESCRIPTION);
+
+  const dmgTakenChart = await generateChart(
+    dmgTakenDataToChart,
+    TOP_DMG_TAKEN_CHART_TITLE,
+    TOP_DMG_TAKEN_CHART_DESCRIPTION,
+  );
+
+  const dmgTakenByAbilityChart = await generateChart(
+    dmgTakenByAbilityChartData,
+    TOP_DMG_TAKEN_BY_ABILITY_CHART_TITLE,
+    TOP_DMG_TAKEN_BY_ABILITY_CHART_TITLE,
+  );
 
   const sortedDeaths = sortByValueDescending(playerDeaths);
   const deathsSummary = sortedDeaths
@@ -117,5 +199,6 @@ export async function generateRaidSummary(logId: string, dmgTakenFilterExpressio
 
   const WclUrl = await generateWarcraftLogsUrl(logId, dmgTakenFilterExpression);
   const dmgDoneUrl = await createDmgDoneUrl(logId, DMG_DONE_FILTER);
-  return `**${title} - ${formattedDate} - ${dmgDoneUrl}\n**\n**Roster**\n${raidRoster}\n\n**Raid Duration**: ${formatDuration(raidDuration)}\n**Total Damage Done**: ${numberWithCommas(totalDamage)}\n**Total Avoidable Damage Taken**: ${numberWithCommas(totalDamageTaken)}\n**Total Deaths**: ${totalDeaths}\n**Total Wipes**: ${totalWipes}\n\n**Top 10 DPS**:\n${dmgDealersSummary}\n\n**Top 10 Avoidable Damage Taken**:\n${dmgTakenSummary}\n\n**Deaths by Player (top 5)**:\n${deathsSummary}\n\n**Damage Taken Log breakdown** ${WclUrl}\n\n`;
+  const string = `**${title} - ${formattedDate} - ${dmgDoneUrl}\n**\n**Roster**\n${raidRoster}\n\n**Raid Duration**: ${formatDuration(raidDuration)}\n**Total Damage Done**: ${numberWithCommas(totalDamage)}\n**Total Avoidable Damage Taken**: ${numberWithCommas(totalDamageTaken)}\n**Total Deaths**: ${totalDeaths}\n**Total Wipes**: ${totalWipes}\n\n**Top 10 DPS**:\n${dmgDealersSummary}\n\n**Top 10 Avoidable Damage Taken**:\n${dmgTakenSummary}\n\n**Deaths by Player (top 5)**:\n${deathsSummary}\n\n**Damage Taken Log breakdown** ${WclUrl}\n\n`;
+  return { string, charts: [dmgChart, dmgTakenChart, dmgTakenByAbilityChart] };
 }

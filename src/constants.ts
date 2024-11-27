@@ -11,6 +11,45 @@ export const classIcons: { [key: string]: string } = {
   Druid: "🐻",
 };
 
+export const CLASS_COLORS: { [key: string]: string } = {
+  Warrior: "#C69B6D",
+  Paladin: "#F48CBA",
+  Hunter: "#AAD372",
+  Rogue: "#FFF468",
+  Priest: "#FFFFFF",
+  DeathKnight: "#C41E3A",
+  Shaman: "#0070DD",
+  Mage: "#3FC7EB",
+  Warlock: "#8788EE",
+  Druid: "#FF7C0A",
+};
+
+export const DAMAGE_SCHOOL = {
+  1: "Physical",
+  2: "Holy",
+  4: "Fire",
+  8: "Nature",
+  16: "Frost",
+  32: "Shadow",
+  64: "Arcane",
+};
+
+export const DAMAGE_SCHOOL_COLORS: { [key: string]: string } = {
+  1: "brown",
+  2: "pink",
+  4: "red",
+  8: "green",
+  16: "blue",
+  32: "purple",
+  64: "white",
+};
+
+export const TOP_DPS_CHART_TITLE = "Top Damage Done";
+export const TOP_DPS_CHART_DESCRIPTION = "Top DPS Chart";
+export const TOP_DMG_TAKEN_CHART_TITLE = "Top Damage Taken";
+export const TOP_DMG_TAKEN_CHART_DESCRIPTION = "Top Damage Taken Chart";
+export const TOP_DMG_TAKEN_BY_ABILITY_CHART_TITLE = "Top Damage Taken By Ability";
+
 export const TANKS = ["vis", "hoof", "hoov"];
 
 export const TARGET_CHANNEL_ID = "1304931116989546526";
@@ -19,7 +58,7 @@ export const WEEKLY_SUMMARY_CHANNEL_ID = "1306746576529526885";
 export const DMG_DONE_FILTER = `encounterid not in (1206) and target.name NOT IN ("Rageface", "Crystal Prison", "Spirit of the Flame","Dreadflame","Fragment of Rhyolith") OR  (target.name IN ("Riplimb") AND target.spec != "Blood" AND target.spec != "Guardian")`;
 
 export const DEFAULT_FILTER =
-  '(ability.id IN (99336, 98885, 99427, 99816, 99605, 99794, 97234, 99842, 998426, 99224, 98708, 98928, 98870, 100941, 98498, 99287, 100455, 99144, 97151, 99510, 99552, 100070))  OR  (ability.id IN (99844, 99308, 100024, 99931, 100794, 99758) AND target.spec != "Blood" AND target.spec != "Guardian")';
+  '(ability.name IN ("Lava Spew", "Fiery Tornado", "Firestorm", "Fiery Vortex", "Magma Flow", "Engulfing Flames", "Sulfuras Smash", "Lava Wave", "Scorched Ground", "Sulfuras", "Magma", "Lava", "Lava Jet", "Molten Barrage") AND ability.id NOT IN (99606,99605))  OR  (ability.name IN ("Blazing Claw", "Gushing Wound", "Arcing Slash", "Flame Torrent", "Flame Breath") AND target.spec != "Blood" AND target.spec != "Guardian" AND target.spec != "Feral")';
 
 export const WIPES_CUT_OFF = 6;
 
@@ -56,7 +95,7 @@ export type PlayerMap = { [targetID: number]: string };
 
 export const RAID_ROSTER = {
   "!Altecks": new Set(["Alteckzz", "Alteckz", "Alteckzx", "Altecksm", "Altecksmxz", "Altecksmx"]),
-  "!Amar": new Set(["Amarw", "Amarzing", "Amarjr", "Amarzíng", "Amarchain", "Amarlock"]),
+  "!Amar": new Set(["Amarw", "Amarzing", "Amarjr", "Amarzíng", "Amarchain", "Amarlock", "Amarjjr"]),
   "!Anfall": new Set(["Anfall", "Anfhalal", "Anfallicc", "Avfall", "Anfallafel", "Anfallrace", "Anfcatafall"]),
   "!Baktus": new Set(["Baktus", "Bakttus", "Baktuss", "Firetus", "Firettus"]),
   "!Barrekush": new Set(["Barrekush", "Barrekuush", "Barrehash", "Barrehush", "Barrebanan", "Barreblåbär"]),
@@ -133,7 +172,7 @@ export const RAID_ROSTER = {
     "Flaresham",
     "Flareqq",
   ]),
-  "!Frooma": new Set(["Qrepth", "Qwypth", "Qspth", "Qwepth"]),
+  "!Frooma": new Set(["Qrepth", "Qwypth", "Qspth", "Qwepth", "Froomas", "Froomash"]),
   "!Funkycut": new Set(["Funkydecay", "Funghidk", "Funkydekay", "Funkycut", "Funkykut", "Funkycutx"]),
   "!Gnomeboy": new Set(["Bendkone", "Bendkthree", "Bendktwo", "Bengun", "Benm", "Benmthree", "Benmtwo", "Gnomeboy"]),
   "!Goesting": new Set(["Goestingptwo", "Goestingptre", "Goestingp", "Goestingpfor"]),
@@ -145,6 +184,7 @@ export const RAID_ROSTER = {
     "Holypalaswev",
     "Holypalasweu",
     "Holypalaswet",
+    "Hadooginh",
   ]),
   "!Itsmarcowl": new Set(["Marcofotmxo", "Marcothree", "Marcofotmx", "Itsmarcowl", "Itsmarcofotm"]),
   "!Julius": new Set(["Juliusxp", "Juliusp", "Juliusw", "Juliuswxd", "Juliuswx"]),

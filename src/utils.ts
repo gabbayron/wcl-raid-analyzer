@@ -51,3 +51,15 @@ export async function sendLongMessage(channel: TextChannel, message: string) {
     await channel.send(message.slice(i, i + chunkSize));
   }
 }
+
+export function sortObjectByValueDesc<T>(obj: Record<string, T>): Record<string, T> {
+  const entries = Object.entries(obj);
+
+  entries.sort(([, valueA], [, valueB]) => {
+    if (valueA < valueB) return 1;
+    if (valueA > valueB) return -1;
+    return 0;
+  });
+
+  return Object.fromEntries(entries);
+}

@@ -63,7 +63,6 @@ const handleWeeklyRaidsSummary = async (interaction: Interaction<CacheType>) => 
   const weeklySummary = await generateWeeklyRaidSummary(logIdsArray);
   const weeklySummaryChannel: any = client.channels.cache.get(WEEKLY_SUMMARY_CHANNEL_ID);
   await sendLongMessage(weeklySummaryChannel, weeklySummary);
-
   await interaction.followUp({
     content: `Details have been sent to the specified channel: ${weeklySummaryChannel}`,
     ephemeral: true,
@@ -87,9 +86,13 @@ const handleSingleRaidSummary = async (interaction: Interaction<CacheType>) => {
     content: `Analyzing request ${username}, Did you know, ${randomJoke}`,
   });
 
-  const raidSummary = await generateRaidSummary(logId, dmgTakenFilterExpression);
+  const { string, charts } = await generateRaidSummary(logId, dmgTakenFilterExpression);
 
-  await raidSummaryChannel.send(raidSummary);
+  await raidSummaryChannel.send({ content: string, split: true });
+
+  charts?.forEach(async (chart) => {
+    await raidSummaryChannel.send({ embeds: [chart] });
+  });
 
   await interaction.followUp({
     content: `Details have been sent to the specified channel: ${raidSummaryChannel}`,
