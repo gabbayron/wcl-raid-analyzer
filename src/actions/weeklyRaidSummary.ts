@@ -1,4 +1,5 @@
 import { Fight, PlayerMap } from "../constants";
+import { fetchRaidRoster } from "../google-auth/google-api-";
 import { formatDuration, formatRaidDate, getKeyByCharacterName } from "../utils";
 import {
   calculateRaidDuration,
@@ -15,6 +16,7 @@ export async function generateWeeklyRaidSummary(logIds: string[]) {
   const raidSummaries = [];
   const deathsByPlayer: Record<string, number> = {};
   const raidsPerPlayer: Record<string, number> = {};
+  await fetchRaidRoster();
 
   const raidsData: {
     code: string;

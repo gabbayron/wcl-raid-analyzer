@@ -1,5 +1,5 @@
 import { TextChannel } from "discord.js";
-import { RAID_ROSTER } from "./constants";
+import { RAID_ROSTER } from "./google-auth/google-api-";
 
 // Helper function to add commas to numbers (e.g., 1000 -> 1,000)
 export function numberWithCommas(x: number): string {

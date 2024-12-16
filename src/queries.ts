@@ -71,3 +71,33 @@ export const fightsQuery = `
     }
   }
 `;
+
+export const castsQuery = `
+  query($logId: String!, $startTime: Float!, $endTime: Float!, $filterExpression: String) {
+    reportData {
+      report(code: $logId) {
+        table(startTime: $startTime, endTime: $endTime, dataType: Casts, wipeCutoff: ${WIPES_CUT_OFF} ,filterExpression :$filterExpression)
+      }
+    }
+  }
+`;
+
+export const totalCastsQuery = `
+  query($logId: String!, $startTime: Float!, $endTime: Float!) {
+    reportData {
+      report(code: $logId) {
+        table(startTime: $startTime, endTime: $endTime, dataType: Casts, wipeCutoff: ${WIPES_CUT_OFF},killType: Encounters)
+      }
+    }
+  }
+`;
+
+export const dispelsQuery = `
+  query($logId: String!, $startTime: Float!, $endTime: Float!) {
+    reportData {
+      report(code: $logId) {
+        table(startTime: $startTime, endTime: $endTime, dataType: Dispels, wipeCutoff: ${WIPES_CUT_OFF})
+      }
+    }
+  }
+`;

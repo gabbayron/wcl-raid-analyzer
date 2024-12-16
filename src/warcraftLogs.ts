@@ -1,6 +1,15 @@
 import axios from "axios";
-import { eventsQuery, fightsQuery, playerInfoQuery, tableQuery, tableQueryDamageTaken } from "./queries";
-import { Fight, PlayerMap, WIPES_CUT_OFF } from "./constants";
+import {
+  castsQuery,
+  dispelsQuery,
+  eventsQuery,
+  fightsQuery,
+  playerInfoQuery,
+  tableQuery,
+  tableQueryDamageTaken,
+  totalCastsQuery,
+} from "./queries";
+import { EFFECTIVE_SUNDERS_FILTER, EXPANSIONS, Fight, PlayerMap, WIPES_CUT_OFF } from "./constants";
 
 let accessToken: string | null = null;
 
@@ -105,6 +114,27 @@ export async function fetchDamageTakenData(logId: string, fightID: number, filte
   return { data: { entries: [] } };
 }
 
+export async function fetchCasts(
+  logId: string,
+  startTime: number,
+  endTime: number,
+  expansion: string,
+  filterExpression = EFFECTIVE_SUNDERS_FILTER,
+) {
+  if (expansion === "cata") {
+    return;
+  }
+
+  const data = await fetchWarcraftLogsData(castsQuery, {
+    logId,
+    startTime,
+    endTime,
+    filterExpression,
+  });
+
+  return data.reportData.report.table.data.entries;
+}
+
 export async function fetchDeathsAndWipes(logId: string, startTime: number, endTime: number): Promise<any> {
   const data = await fetchWarcraftLogsData(eventsQuery, {
     logId,
@@ -126,21 +156,23 @@ export async function fetchPlayerInfo(logId: string): Promise<PlayerMap> {
   return playerMap;
 }
 
-export async function generateWarcraftLogsUrl(logId: string, filter: string, options = 38) {
-  const baseUrl = "https://classic.warcraftlogs.com/reports/";
+export async function generateWarcraftLogsUrl(logId: string, filter: string, options = 38, expansion: string) {
+  const subdomain = expansion === EXPANSIONS.CATA ? "classic" : "fresh";
+  const baseUrl = `https://${subdomain}.warcraftlogs.com/reports/`;
 
   // Create the URL with the provided expression and options
-  const url = `${baseUrl}${logId}#boss=-3&difficulty=0&type=damage-taken&pins=2%24Off%24%23244F4B%24expression%24${encodeURIComponent(filter)}&options=${options}&cutoff=${WIPES_CUT_OFF}`;
+  const url = `${baseUrl}${logId}#boss=-3&difficulty=0&type=damage-taken&pins=2%24Off%24%23244F4B%${filter ? `24expression%24${encodeURIComponent(filter)}` : ""}&options=${options}&cutoff=${WIPES_CUT_OFF}`;
   const { data: shortenedUrl } = await axios.get(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(url)}`);
 
   return shortenedUrl;
 }
 
-export async function createDmgDoneUrl(logId: string, filter: string): Promise<string> {
-  const baseUrl = "https://classic.warcraftlogs.com/reports/";
+export async function createDmgDoneUrl(logId: string, filter: string, expansion: string): Promise<string> {
+  const subdomain = expansion === EXPANSIONS.CATA ? "classic" : "fresh";
+  const baseUrl = `https://${subdomain}.warcraftlogs.com/reports/`;
 
   const encodedExpression = encodeURIComponent(filter);
-  const url = `${baseUrl}${logId}#boss=-3&difficulty=0&cutoff=${WIPES_CUT_OFF}&pins=2%24Off%24%23244F4B%24expression%24${encodedExpression}`;
+  const url = `${baseUrl}${logId}#boss=-3&difficulty=0&cutoff=${WIPES_CUT_OFF}&pins=2%24Off%24%23244F4B%${filter ? `24expression%24${encodedExpression}` : ""}`;
 
   const { data: shortenedUrl } = await axios.get(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(url)}`);
 
@@ -154,4 +186,24 @@ export function getValidFights(fights: Fight[]): Fight[] {
 export function calculateRaidDuration(fights: Fight[]): number {
   if (fights.length === 0) return 0;
   return (fights[fights.length - 1].endTime - fights[0].startTime) / 1000;
+}
+
+export async function fetchTotalCasts(logId: string, startTime: number, endTime: number) {
+  const data = await fetchWarcraftLogsData(totalCastsQuery, {
+    logId,
+    startTime,
+    endTime,
+  });
+
+  return data.reportData.report.table.data.entries;
+}
+
+export async function fetchDispels(logId: string, startTime: number, endTime: number) {
+  const data = await fetchWarcraftLogsData(dispelsQuery, {
+    logId,
+    startTime,
+    endTime,
+  });
+
+  return data.reportData.report.table.data.entries[0].entries[0];
 }

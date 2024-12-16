@@ -3,7 +3,6 @@ import {
   CLASS_COLORS,
   classIcons,
   DAMAGE_SCHOOL_COLORS,
-  DMG_DONE_FILTER,
   Fight,
   TOP_DMG_TAKEN_BY_ABILITY_CHART_TITLE,
   TOP_DMG_TAKEN_CHART_DESCRIPTION,
@@ -30,7 +29,12 @@ import {
   getValidFights,
 } from "../warcraftLogs";
 
-export async function generateRaidSummary(logId: string, dmgTakenFilterExpression: string) {
+export async function generateRaidSummary(
+  logId: string,
+  dmgTakenFilterExpression: string,
+  dmgDoneFilterExpression: string,
+  expansion: string,
+) {
   // Fetch raid info and player info in parallel
   const [raidData, playerMap] = await Promise.all([fetchFights(logId), fetchPlayerInfo(logId)]);
 
@@ -52,13 +56,15 @@ export async function generateRaidSummary(logId: string, dmgTakenFilterExpressio
   const validFights = getValidFights(fights);
   const raidDuration = calculateRaidDuration(validFights);
 
+  // const data = await fetchGear(logId);
+
   // Fetch all data for each fight concurrently
   await Promise.all(
     validFights.map(async (fight) => {
       const { startTime, endTime, kill, id: fightId } = fight;
 
       const [dmgDoneData, dmgTakenData, deathAndWipeData] = await Promise.all([
-        fetchDamageData(logId, startTime, endTime, DMG_DONE_FILTER),
+        fetchDamageData(logId, startTime, endTime, dmgDoneFilterExpression),
         fetchDamageTakenData(logId, fightId, dmgTakenFilterExpression),
         fetchDeathsAndWipes(logId, startTime, endTime),
       ]);
@@ -197,8 +203,8 @@ export async function generateRaidSummary(logId: string, dmgTakenFilterExpressio
 
   const formattedDate = formatRaidDate(raidStartTime);
 
-  const WclUrl = await generateWarcraftLogsUrl(logId, dmgTakenFilterExpression);
-  const dmgDoneUrl = await createDmgDoneUrl(logId, DMG_DONE_FILTER);
+  const WclUrl = await generateWarcraftLogsUrl(logId, dmgTakenFilterExpression, 38, expansion);
+  const dmgDoneUrl = await createDmgDoneUrl(logId, dmgDoneFilterExpression, expansion);
   const string = `**${title} - ${formattedDate} - ${dmgDoneUrl}\n**\n**Roster**\n${raidRoster}\n\n**Raid Duration**: ${formatDuration(raidDuration)}\n**Total Damage Done**: ${numberWithCommas(totalDamage)}\n**Total Avoidable Damage Taken**: ${numberWithCommas(totalDamageTaken)}\n**Total Deaths**: ${totalDeaths}\n**Total Wipes**: ${totalWipes}\n\n**Top 10 DPS**:\n${dmgDealersSummary}\n\n**Top 10 Avoidable Damage Taken**:\n${dmgTakenSummary}\n\n**Deaths by Player (top 5)**:\n${deathsSummary}\n\n**Damage Taken Log breakdown** ${WclUrl}\n\n`;
   return { string, charts: [dmgChart, dmgTakenChart, dmgTakenByAbilityChart] };
 }
