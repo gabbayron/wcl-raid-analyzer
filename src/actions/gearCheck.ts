@@ -124,11 +124,11 @@ function formatItemSlot(slot: string, data: { enchant?: string; sharpeningStone?
   const isCrusader = data.enchant === "Crusader";
   const isNoneEnchant = data.enchant === NONE_ENCHANT;
   const enchantDisplayName = isCrusader || isNoneEnchant ? data.enchant : `👀 **${data.enchant}**`;
-  let formatted = `${slot.charAt(0).toUpperCase() + slot.slice(1)}: Enchant - ${enchantDisplayName}`;
+  let formatted = `${isCrusader ? "" : `${slot.charAt(0).toUpperCase() + slot.slice(1)} : Enchant - ${enchantDisplayName}`}`;
 
   // Include sharpening stone/poison check for off-hand weapon slots
   if (slot === ITEM_SLOTS[16] && data.sharpeningStone === NONE_ENCHANT) {
-    formatted += `\nSharpening Stone/Poison - ${data.sharpeningStone}`;
+    formatted += `${isCrusader ? `${slot.charAt(0).toUpperCase() + slot.slice(1)}: Sharpening Stone/Poison - ${data.sharpeningStone}` : `\nSharpening Stone/Poison - ${data.sharpeningStone}`}`;
   }
 
   return formatted;
