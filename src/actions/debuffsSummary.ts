@@ -11,6 +11,7 @@ export async function generateDebuffsSummary(logId: string): Promise<string> {
   if (!fights || fights.length === 0) {
     return "No fights found for this log.";
   }
+  let fightsTotalTime = 0;
 
   const validFights = getValidFights(fights);
 
@@ -27,7 +28,9 @@ export async function generateDebuffsSummary(logId: string): Promise<string> {
         const dataToUpdate = isTrash ? trashDebuffsUptime : encountersDebuffsUptime;
 
         const totalTime = debuffsEvents.data.totalTime;
-
+        if (!isTrash) {
+          fightsTotalTime += debuffsEvents.data.totalTime;
+        }
         if (dataToUpdate[debuffName]) {
           dataToUpdate[debuffName].totalTime += totalTime;
           dataToUpdate[debuffName].totalUptime += aura.totalUptime;
@@ -40,18 +43,24 @@ export async function generateDebuffsSummary(logId: string): Promise<string> {
     }),
   );
 
-  const encounters = calculateUptimePercentages(encountersDebuffsUptime);
-  const trash = calculateUptimePercentages(trashDebuffsUptime);
+  const encounters = calculateUptimePercentages(
+    encountersDebuffsUptime,
+    encountersDebuffsUptime["Faerie Fire"].totalTime,
+  );
+  const trash = calculateUptimePercentages(trashDebuffsUptime, trashDebuffsUptime["Faerie Fire"].totalTime);
 
   return `**__Debuffs uptime %__**\n\n**Encounters**:\n${encounters}\n\n**Trash**\n${trash}`;
 }
 
-const calculateUptimePercentages = (debuffs: Record<string, { totalTime: number; totalUptime: number }>) => {
+const calculateUptimePercentages = (
+  debuffs: Record<string, { totalTime: number; totalUptime: number }>,
+  totalRaidTime: number,
+) => {
   return Object.entries(debuffs)
     .filter(([name]) => FRESH_SELECTED_DEBUFFS.includes(name)) // Include only selected debuffs
     .map(([name, { totalTime, totalUptime }]) => ({
       name,
-      percentage: (totalUptime / totalTime) * 100,
+      percentage: (totalUptime / totalRaidTime) * 100,
     }))
     .sort((a, b) => b.percentage - a.percentage) // Sort by highest percentage
     .map(({ name, percentage }) => `${name}: ${percentage.toFixed(2)}%`)

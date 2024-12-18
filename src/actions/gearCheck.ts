@@ -23,6 +23,7 @@ export async function generateGearCheck(logId: string, expansion: string): Promi
   const playersData: { [key: string]: PlayerData } = {};
   const sundersByPlayer: { [key: string]: number } = {};
   const dispelsByPlayer: { [key: string]: number } = {};
+  const warriors: Set<string> = new Set();
 
   const raidData = await fetchFights(logId);
 
@@ -42,6 +43,9 @@ export async function generateGearCheck(logId: string, expansion: string): Promi
 
   const generalCastsData = await fetchTotalCasts(logId, startTime, endTime);
   generalCastsData.forEach((entry: PlayerDetails) => {
+    if (entry.type === "Warrior") {
+      warriors.add(entry.name);
+    }
     if (entry.type === "Warrior" || entry.type === "Rogue") {
       entry.gear.forEach((item) => {
         const isWeaponSlot = WEAPONS_SLOTS.includes(item.slot);
@@ -114,16 +118,33 @@ export async function generateGearCheck(logId: string, expansion: string): Promi
   const sortedSunders = sortByValueDescending(sundersByPlayer);
   const sortedDispels = sortByValueDescending(dispelsByPlayer);
 
-  const sundersSummary = sortedSunders.map((playerName) => `${playerName}: ${sundersByPlayer[playerName]}`).join("\n");
-  const dispelsSummary = sortedDispels.map((playerName) => `${playerName}: ${dispelsByPlayer[playerName]}`).join("\n");
+  const sundersSummary = sortedSunders
+    .map((playerName) => {
+      if (warriors.has(playerName)) {
+        warriors.delete(playerName);
+        return `${playerName}: ${sundersByPlayer[playerName]}`;
+      }
+    })
+    .join("\n");
+  const noWarriorsSunders: string[] = [];
+  warriors.forEach((warriorName) => {
+    noWarriorsSunders.push(`${warriorName}: :Starege:  **0** :Starege: `);
+  });
 
-  return `${formattedPlayerData} \n\n**__Effective Sunders__**:\n${sundersSummary}\n\n**__Dispels__**:\n${dispelsSummary}`;
+  const dispelsSummary: string[] = [];
+
+  sortedDispels.forEach(
+    (playerName) =>
+      dispelsByPlayer[playerName] > 2 && dispelsSummary.push(`${playerName}: ${dispelsByPlayer[playerName]}`),
+  );
+
+  return `${formattedPlayerData} \n\n**__Effective Sunders__**:\n${sundersSummary}\n${noWarriorsSunders.join("\n")}\n\n**__Dispels__**:\n${dispelsSummary.join("\n")}`;
 }
 
 function formatItemSlot(slot: string, data: { enchant?: string; sharpeningStone?: string }): string {
   const isCrusader = data.enchant === "Crusader";
   const isNoneEnchant = data.enchant === NONE_ENCHANT;
-  const enchantDisplayName = isCrusader || isNoneEnchant ? data.enchant : `👀 **${data.enchant}**`;
+  const enchantDisplayName = isCrusader || isNoneEnchant ? data.enchant : `:Starege:  **${data.enchant}**`;
   let formatted = `${isCrusader ? "" : `${slot.charAt(0).toUpperCase() + slot.slice(1)} : Enchant - ${enchantDisplayName}`}`;
 
   // Include sharpening stone/poison check for off-hand weapon slots
