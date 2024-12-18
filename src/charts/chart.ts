@@ -34,7 +34,12 @@ export async function generateChart(
           align: "end",
           color: "white",
           formatter: (value: any) => {
-            return `${(value / 1_000_000).toFixed(2)}m`;
+            if (value >= 1_000_000) {
+              return `${(value / 1_000_000).toFixed(2)}m`; // Convert to millions
+            } else if (value >= 1_000) {
+              return `${(value / 1_000).toFixed(2)}k`; // Convert to thousands
+            }
+            return value.toString();
           },
         },
       },
@@ -72,5 +77,5 @@ function formatNumber(value: number): string {
   } else if (value >= 1_000) {
     return `${(value / 1_000).toFixed(2)}k`; // Convert to thousands
   }
-  return value.toString(); // Return the number as-is if below 1,000
+  return value.toString();
 }

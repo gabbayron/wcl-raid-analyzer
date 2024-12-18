@@ -40,6 +40,13 @@ export const GEAR_CHECK = {
     ),
 };
 
+export const DEBUFFS_COMMAND = {
+  data: new SlashCommandBuilder()
+    .setName("debuffs")
+    .setDescription("Overall debuffs uptime")
+    .addStringOption((option) => option.setName("log_id").setDescription("Log ID or URL").setRequired(true)),
+};
+
 export const RAID_SUMMARY_COMMAND = {
   data: new SlashCommandBuilder()
     .setName("weekly_raids_summary")

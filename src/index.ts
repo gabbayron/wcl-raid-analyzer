@@ -13,6 +13,7 @@ import {
 
 import { authenticateWarcraftLogs } from "./warcraftLogs";
 import {
+  DEBUFFS_CHECK_CHANNEL_ID,
   DMG_DONE_FILTER,
   DMG_TAKEN_FILTER_TO_EXPANSION,
   EXPANSIONS,
@@ -25,6 +26,7 @@ import dotenv from "dotenv";
 import { fetchRandomFact } from "./randomFact";
 import {
   ADD_COMMAND,
+  DEBUFFS_COMMAND,
   GEAR_CHECK,
   RAID_COMMAND,
   RAID_OPTIONS,
@@ -35,6 +37,7 @@ import { generateRaidSummary } from "./actions/raidSummary";
 import { generateWeeklyRaidSummary } from "./actions/weeklyRaidSummary";
 import { fetchCharacterNames, fetchRaidRoster, findRowAndUpdateCharacterName } from "./google-auth/google-api-";
 import { generateGearCheck } from "./actions/gearCheckl";
+import { generateDebuffsSummary } from "./actions/debuffsSummary";
 
 dotenv.config();
 authenticateWarcraftLogs();
@@ -43,9 +46,15 @@ const client = new Client({
   intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent],
 });
 
-const commands = [RAID_COMMAND, RAID_SUMMARY_COMMAND, ADD_COMMAND, RAID_OPTIONS, RENAME_NAME_COMMAND, GEAR_CHECK].map(
-  (command) => command.data.toJSON(),
-);
+const commands = [
+  RAID_COMMAND,
+  RAID_SUMMARY_COMMAND,
+  ADD_COMMAND,
+  RAID_OPTIONS,
+  RENAME_NAME_COMMAND,
+  GEAR_CHECK,
+  DEBUFFS_COMMAND,
+].map((command) => command.data.toJSON());
 
 const rest = new REST({ version: "10" }).setToken(process.env.DISCORD_TOKEN!);
 
@@ -100,6 +109,9 @@ client.on("interactionCreate", async (interaction) => {
 
     if (interaction.commandName === "gear_check") {
       await handleGearCheck(interaction);
+    }
+    if (interaction.commandName === "debuffs") {
+      await handleDebuffs(interaction);
     }
 
     if (interaction.commandName === "add") {
@@ -363,6 +375,24 @@ const handleGearCheck = async (interaction: Interaction<CacheType>) => {
 
   await interaction.followUp({
     content: `Details have been sent to the specified channel: ${gearCheckChannel}`,
+    ephemeral: true,
+  });
+};
+
+const handleDebuffs = async (interaction: Interaction<CacheType>) => {
+  if (!interaction.isCommand()) return;
+
+  const debuffsChannel: any = client.channels.cache.get(DEBUFFS_CHECK_CHANNEL_ID);
+
+  const providedLogId = interaction.options.get("log_id")?.value as string;
+  const logId = extractLogId(providedLogId) as string;
+
+  const content = await generateDebuffsSummary(logId);
+
+  await sendLongMessage(debuffsChannel, content);
+
+  await interaction.followUp({
+    content: `Details have been sent to the specified channel: ${debuffsChannel}`,
     ephemeral: true,
   });
 };

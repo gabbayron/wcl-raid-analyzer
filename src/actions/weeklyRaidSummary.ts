@@ -13,9 +13,14 @@ export async function generateWeeklyRaidSummary(logIds: string[]) {
   let totalDuration = 0;
   let totalDeaths = 0;
   let totalWipes = 0;
+  let timeBetweenRaids = 0;
+  let timeBetweenRaidsText = "";
   const raidSummaries = [];
   const deathsByPlayer: Record<string, number> = {};
   const raidsPerPlayer: Record<string, number> = {};
+  let totalTimeBetweenRaids = 0;
+  const splitNights = new Set<number>();
+
   await fetchRaidRoster();
 
   const raidsData: {
@@ -23,6 +28,7 @@ export async function generateWeeklyRaidSummary(logIds: string[]) {
     fights: Fight[];
     title: string;
     startTime: number;
+    endTime: number;
   }[] = await Promise.all(logIds.map((logId) => fetchFights(logId)));
 
   const playersPerLog: { [logId: string]: PlayerMap } = {};
@@ -35,7 +41,12 @@ export async function generateWeeklyRaidSummary(logIds: string[]) {
   );
 
   for (let i = 0; i < raidsData.length; i++) {
-    const { fights, title, startTime: raidStartTime, code } = raidsData[i];
+    const { fights, title, startTime: raidStartTime, endTime: raidEndTime, code } = raidsData[i];
+
+    const { endTime: previousRaidEndTime } = raidsData[i - 1] || {};
+
+    timeBetweenRaids = previousRaidEndTime && (raidStartTime - previousRaidEndTime) / (1000 * 60);
+
     if (!fights || fights.length === 0) continue;
 
     let raidDuration = 0;
@@ -52,7 +63,9 @@ export async function generateWeeklyRaidSummary(logIds: string[]) {
       // Fetch deaths and wipes data for all valid fights in parallel
       const eventsData = await Promise.all(
         validFights.map(async (fight) => {
-          if (fight.kill === false) wipes += 1;
+          if (fight.kill === false) {
+            wipes += 1;
+          }
           return fetchDeathsAndWipes(logIds[i], fight.startTime, fight.endTime);
         }),
       );
@@ -80,8 +93,18 @@ export async function generateWeeklyRaidSummary(logIds: string[]) {
 
     const formattedDate = formatRaidDate(raidStartTime);
 
+    const isSameDayRaid = new Date(raidStartTime).getDay() === new Date(previousRaidEndTime).getDay();
+    splitNights.add(new Date(raidStartTime).getDay());
+
+    timeBetweenRaidsText =
+      timeBetweenRaids && isSameDayRaid && previousRaidEndTime
+        ? `Idle time from previous raid: ${timeBetweenRaids.toFixed(0)} minutes\n`
+        : "";
+
+    totalTimeBetweenRaids += timeBetweenRaids && isSameDayRaid ? timeBetweenRaids : 0;
+
     raidSummaries.push(
-      `**${title} - ${formattedDate} - https://classic.warcraftlogs.com/reports/${logIds[i]}**\nRaid Duration: ${formatDuration(raidDuration)}\nWipes: ${wipes}\nDeaths: ${deaths}\n`,
+      `**${title} - ${formattedDate} - https://classic.warcraftlogs.com/reports/${logIds[i]}**\nRaid Duration: ${formatDuration(raidDuration)}\nWipes: ${wipes}\nDeaths: ${deaths}\n${timeBetweenRaidsText}`,
     );
   }
 
@@ -101,6 +124,8 @@ export async function generateWeeklyRaidSummary(logIds: string[]) {
   const averageDuration = totalDuration / logIds.length;
   const averageDeaths = totalDeaths / logIds.length;
 
+  const averageIdleTime = `${(totalTimeBetweenRaids / (logIds.length - splitNights.size)).toFixed(0)} minutes`;
+
   const sortedPlayersByRatio = Object.keys(deathsByPlayer)
     .map((key) => ({
       player: key,
@@ -117,5 +142,5 @@ export async function generateWeeklyRaidSummary(logIds: string[]) {
     )
     .join("\n");
 
-  return `**Weekly Raid Summary**\n${raidSummaries.join("\n")}\n**Average Raid Duration**: ${formatDuration(averageDuration)}\n**Average Deaths per Raid**: ${averageDeaths.toFixed(0)}\n**Total amount of raids:** ${raidSummaries.length}\n\n**Deaths/Splits Ratio**:\n${sortedDeathsByPlayersString}`;
+  return `**Weekly Raid Summary**\n${raidSummaries.join("\n")}\n**Average Raid Duration**: ${formatDuration(averageDuration)}\n**Average Time Between Raids**: ${averageIdleTime}\n**Average Deaths per Raid**: ${averageDeaths.toFixed(0)}\n**Total amount of raids:** ${raidSummaries.length}\n\n**Deaths/Splits Ratio**:\n${sortedDeathsByPlayersString}`;
 }

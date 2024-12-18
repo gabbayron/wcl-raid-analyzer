@@ -1,6 +1,7 @@
 import axios from "axios";
 import {
   castsQuery,
+  debuffsQuery,
   dispelsQuery,
   eventsQuery,
   fightsQuery,
@@ -85,6 +86,15 @@ export async function fetchDamageData(
     startTime,
     endTime,
     filterExpression,
+  });
+  return data?.reportData.report.table || null;
+}
+
+export async function fetchDebuffs(logId: string, startTime: number, endTime: number): Promise<any> {
+  const data = await fetchWarcraftLogsData(debuffsQuery, {
+    logId,
+    startTime,
+    endTime,
   });
   return data?.reportData.report.table || null;
 }

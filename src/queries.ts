@@ -60,6 +60,7 @@ export const fightsQuery = `
         code
         title
         startTime
+        endTime
         fights {
           id
           startTime
@@ -97,6 +98,16 @@ export const dispelsQuery = `
     reportData {
       report(code: $logId) {
         table(startTime: $startTime, endTime: $endTime, dataType: Dispels, wipeCutoff: ${WIPES_CUT_OFF})
+      }
+    }
+  }
+`;
+
+export const debuffsQuery = `
+  query($logId: String!, $startTime: Float!, $endTime: Float!) {
+    reportData {
+      report(code: $logId) {
+        table(startTime: $startTime, endTime: $endTime, dataType: Debuffs, wipeCutoff: ${WIPES_CUT_OFF}, hostilityType :Enemies)
       }
     }
   }

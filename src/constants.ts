@@ -1,6 +1,6 @@
 export const classIcons: { [key: string]: string } = {
-  Warrior: "🛡️",
-  Paladin: "⚔️",
+  Warrior: "⚔️",
+  Paladin: "🧠",
   Hunter: "🏹",
   Rogue: "🗡️",
   Priest: "🙏",
@@ -61,6 +61,7 @@ export const TANKS = ["vis", "hoof", "hoov"];
 export const TARGET_CHANNEL_ID = "1304931116989546526";
 export const WEEKLY_SUMMARY_CHANNEL_ID = "1306746576529526885";
 export const GEAR_CHECK_CHANNEL_ID = "1317895351247573072";
+export const DEBUFFS_CHECK_CHANNEL_ID = "1318825066636775567";
 
 export const DMG_DONE_FILTER = `encounterid not in (1206) and target.name NOT IN ("Rageface", "Crystal Prison", "Spirit of the Flame","Dreadflame","Fragment of Rhyolith") OR  (target.name IN ("Riplimb") AND target.spec != "Blood" AND target.spec != "Guardian")`;
 
@@ -69,7 +70,17 @@ export const CATA_DMG_TAKEN_FILTER =
 
 export const FRESH_DMG_TAKEN_FILTER = `(ability.id IN (12100, 20605, 19450, 19411, 19717, 19497, 19695)) OR (ability.id IN (20603, 11669) AND target.class IN ("Priest", "Mage", "Druid", "Warlock", "Hunter"))`;
 
-export const EFFECTIVE_SUNDERS_FILTER = `ability.name IN ("Sunder Armor") AND NOT IN RANGE FROM type="applydebuffstack" AND ability.id=11597 AND stack=5 TO type="removedebuff" AND ability.id=11597 GROUP BY target ON target END AND NOT IN RANGE FROM type="applydebuff" AND ability.id=11198 TO type="removedebuff" AND ability.id=11198 GROUP BY target ON target END AND target.id!=16441`;
+export const EFFECTIVE_SUNDERS_FILTER = `ability.name IN ("Sunder Armor") AND NOT IN RANGE FROM type="applydebuffstack" AND ability.id=11597 AND stack=5 TO type="removedebuff" AND ability.id=11597 GROUP BY target ON target END AND NOT IN RANGE FROM type="applydebuff" AND ability.id=11198 TO type="removedebuff" AND ability.id=11198 GROUP BY target ON target END AND target.id!=16441 AND target.name not in ("Flame Imp", "Core Hound", "Firesworn", "Core Rager")`;
+
+export const FRESH_SELECTED_DEBUFFS = [
+  "Curse of Recklessness",
+  "Thunder Clap",
+  "Winter's Chill",
+  "Sunder Armor",
+  "Faerie Fire",
+  "Expose Armor",
+  "Demoralizing Shout",
+];
 
 export const DMG_TAKEN_FILTER_TO_EXPANSION = {
   [EXPANSIONS.CATA]: CATA_DMG_TAKEN_FILTER,
@@ -131,7 +142,12 @@ export const ITEM_SLOTS: { [key: number]: string } = {
   18: "tabard",
 };
 
-export const ITEM_SLOTS_TO_CHECK = [15, 16];
+export const WEAPONS_SLOTS = [15, 16];
+export const WEAPONS_SLOTS_STRING = [ITEM_SLOTS[15], ITEM_SLOTS[16]];
+export const GENERAL_GEAR_SLOT_TO_CHECK = [4, 7, 8];
+export const PHYSICAL_GEAR_SLOT_TO_CHECK = [14, 9];
+
+export const POSSIBLE_ENCHANTS = ["+3 All Stats", "Minor Speed Increase", "+5 Strength"];
 
 export interface PlayerDetails {
   name: string;
