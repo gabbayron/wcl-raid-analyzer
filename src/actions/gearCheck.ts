@@ -6,7 +6,6 @@ import {
   GENERAL_GEAR_SLOT_TO_CHECK,
   WEAPONS_SLOTS_STRING,
   PHYSICAL_GEAR_SLOT_TO_CHECK,
-  FRESH_SELECTED_DEBUFFS,
 } from "../constants";
 import { sortByValueDescending } from "../utils";
 import { fetchCasts, fetchDispels, fetchFights, fetchTotalCasts, getValidFights } from "../warcraftLogs";

@@ -36,7 +36,7 @@ import {
 import { generateRaidSummary } from "./actions/raidSummary";
 import { generateWeeklyRaidSummary } from "./actions/weeklyRaidSummary";
 import { fetchCharacterNames, fetchRaidRoster, findRowAndUpdateCharacterName } from "./google-auth/google-api-";
-import { generateGearCheck } from "./actions/gearCheckl";
+import { generateGearCheck } from "./actions/gearCheck";
 import { generateDebuffsSummary } from "./actions/debuffsSummary";
 
 dotenv.config();
