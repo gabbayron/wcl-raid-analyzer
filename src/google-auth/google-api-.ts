@@ -9,7 +9,7 @@ export const RAID_ROSTER: Record<string, Set<string>> = {};
 // Google Sheets API setup
 const SPREADSHEET_ID = "1iZjAe1yLa6_8PsjYkZv7usnXE2wtN7vxFuvNfDAf2SI";
 const RANGE = "Raid Roster!G6:H500";
-const RANGE_DATABASE_USER = "User_database!A1:B100";
+const RANGE_DATABASE_USER = "User_database!A1:C200";
 const RAID_ROSTER_TAB_NAME = "Raid Roster";
 const SHEET_ID = "1iZjAe1yLa6_8PsjYkZv7usnXE2wtN7vxFuvNfDAf2SI";
 const LOOT_SHEET_ID = "14ucGZODYwpXw4dxhMm7SUQc4daGr0HmL7RefFaZdEh4";
@@ -212,7 +212,7 @@ export async function fetchRaidRoster() {
 }
 
 export async function fetchCharacterNames() {
-  const charNames: { discordId: string; playerName: string }[] = [];
+  const charNames: { discordId: string; playerName: string; userId: string }[] = [];
   const auth = new google.auth.GoogleAuth({
     keyFile: KEY_FILE,
     scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"],
@@ -232,9 +232,94 @@ export async function fetchCharacterNames() {
     return [];
   }
 
-  rows.forEach(([playerName, discordId]) => {
-    charNames.push({ discordId, playerName });
+  rows.forEach(([playerName, discordId, userId]) => {
+    charNames.push({ discordId, playerName, userId });
   });
 
   return charNames;
+}
+
+export async function getRaidNames(spreadsheetId = SHEET_ID) {
+  const auth = new google.auth.GoogleAuth({
+    keyFile: KEY_FILE, // Path to your service account key file
+    scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"],
+  });
+
+  const sheets = google.sheets({ version: "v4", auth });
+
+  const response = await sheets.spreadsheets.values.get({
+    spreadsheetId,
+    range: `${RAID_ROSTER_TAB_NAME}!Q2:AB4`,
+  });
+
+  const rows = response.data.values;
+  if (!rows || rows.length < 3) {
+    console.log("Insufficient data found in the range.");
+    return [];
+  }
+
+  const [days, times, splits] = rows;
+
+  const raidDetails = days.map((day, index) => {
+    const time = times[index];
+    const split = splits[index];
+    return `${day.trim()} ${time} ${split}`;
+  });
+
+  return raidDetails;
+}
+
+export async function fetchUserData(splitName: string, spreadsheetId = SHEET_ID) {
+  try {
+    const auth = new google.auth.GoogleAuth({
+      keyFile: KEY_FILE,
+      scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"],
+    });
+    const sheets = google.sheets({ version: "v4", auth });
+
+    const range = `${RAID_ROSTER_TAB_NAME}!P2:AB200`;
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range,
+    });
+
+    const data = response.data.values;
+    if (!data) {
+      throw new Error("No data found.");
+    }
+
+    const splitMapping: { [key: string]: string[] } = {};
+
+    // Loop through each column in the splits row (starting from index 2 to skip header and time)
+    for (let colIndex = 2; colIndex < data[2].length; colIndex++) {
+      const split = data[2][colIndex];
+      if (split) {
+        const day = data[0][colIndex].trim(); // Day (from row 0)
+        const time = data[1][colIndex]; // Time (from row 1)
+
+        // Build the key using day, time, and split name
+        const key = `${day} ${time} ${split}`;
+
+        // Initialize an empty array for the split in the mapping
+        splitMapping[key] = [];
+
+        // Loop through the character rows
+        for (let i = 4; i < data.length; i++) {
+          const charName = data[i][0]; // Get the character name (key column)
+          const cellValue = data[i][colIndex]; // Get the value in the current split's column
+
+          // If the cell is non-empty, add the character to the split's array
+          if (cellValue && charName) {
+            splitMapping[key].push(charName);
+          }
+        }
+      }
+    }
+
+    // Return the array for the specific split name requested
+    return splitMapping[splitName];
+  } catch (error) {
+    console.error("Error fetching data from Google Sheets:", error);
+    throw new Error("Failed to fetch data from Google Sheets.");
+  }
 }

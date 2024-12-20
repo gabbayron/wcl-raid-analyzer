@@ -30,14 +30,21 @@ import {
   GEAR_CHECK,
   RAID_COMMAND,
   RAID_OPTIONS,
+  RAID_PING_COMMAND,
   RAID_SUMMARY_COMMAND,
   RENAME_NAME_COMMAND,
 } from "./commands/raid-command";
 import { generateRaidSummary } from "./actions/raidSummary";
 import { generateWeeklyRaidSummary } from "./actions/weeklyRaidSummary";
-import { fetchCharacterNames, fetchRaidRoster, findRowAndUpdateCharacterName } from "./google-auth/google-api-";
+import {
+  fetchCharacterNames,
+  fetchRaidRoster,
+  findRowAndUpdateCharacterName,
+  getRaidNames,
+} from "./google-auth/google-api-";
 import { generateGearCheck } from "./actions/gearCheck";
 import { generateDebuffsSummary } from "./actions/debuffsSummary";
+import { handlePingRoster } from "./actions/pingRoster";
 
 dotenv.config();
 authenticateWarcraftLogs();
@@ -54,6 +61,7 @@ const commands = [
   RENAME_NAME_COMMAND,
   GEAR_CHECK,
   DEBUFFS_COMMAND,
+  RAID_PING_COMMAND,
 ].map((command) => command.data.toJSON());
 
 const rest = new REST({ version: "10" }).setToken(process.env.DISCORD_TOKEN!);
@@ -96,9 +104,12 @@ client.on("interactionCreate", async (interaction) => {
     return await interaction.respond(charactersResponse);
   }
 
-  if (interaction.isCommand()) {
-    await interaction.deferReply({ ephemeral: true });
+  if (interaction.isAutocomplete() && interaction.commandName === "ping-roster") {
+    const raidNames = await getRaidNames();
+    await interaction.respond(raidNames.map((name) => ({ name, value: name })));
+  }
 
+  if (interaction.isCommand()) {
     if (interaction.commandName === "raid") {
       await handleSingleRaidSummary(interaction);
     }
@@ -168,6 +179,10 @@ client.on("interactionCreate", async (interaction) => {
         content: "Please select a start date:",
         components: [startDateMenu, buttons],
       });
+    }
+
+    if (interaction.commandName === "ping-roster") {
+      return await handlePingRoster(interaction);
     }
   }
 

@@ -100,3 +100,16 @@ export const RAID_OPTIONS = {
     )
     .addStringOption((option) => option.setName("note").setDescription("Custom not")),
 };
+
+export const RAID_PING_COMMAND = {
+  data: new SlashCommandBuilder()
+    .setName("ping-roster")
+    .setDescription("Ping all members in a raid roster")
+    .addStringOption((option) =>
+      option.setName("split_name").setDescription("Select a raid").setRequired(true).setAutocomplete(true),
+    )
+    .addStringOption((option) => option.setName("raid_lead").setDescription("Who to whisper").setRequired(true))
+    .addStringOption((option) =>
+      option.setName("whisper_key_word").setDescription("Whisper key word").setRequired(true),
+    ),
+};
