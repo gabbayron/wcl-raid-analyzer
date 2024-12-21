@@ -1,4 +1,5 @@
 import { google } from "googleapis";
+import moment from "moment";
 import path from "path";
 
 // Path to your service account key file
@@ -260,13 +261,24 @@ export async function getRaidNames(spreadsheetId = SHEET_ID) {
 
   const [days, times, splits] = rows;
 
-  const raidDetails = days.map((day, index) => {
-    const time = times[index];
-    const split = splits[index];
-    return `${day.trim()} ${time} ${split}`;
-  });
+  const filteredRaids = days
+    .map((day, index) => {
+      const time = times[index];
+      const split = splits[index];
 
-  return raidDetails;
+      // Combine date and time into a single string and parse it
+      const raidDateTime = moment(`${day.trim()} ${time}`, "ddd DD MMM HH:mm");
+
+      // Filter raids that are older than 2 days
+      if (raidDateTime.isAfter(moment().subtract(2, "days"))) {
+        return `${day.trim()} ${time} ${split}`;
+      }
+
+      return null; // Exclude older raids
+    })
+    .filter((raid) => raid !== null); // Remove null values
+
+  return filteredRaids;
 }
 
 export async function fetchUserData(splitName: string, spreadsheetId = SHEET_ID) {
