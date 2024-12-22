@@ -63,3 +63,10 @@ export function sortObjectByValueDesc<T>(obj: Record<string, T>): Record<string,
 
   return Object.fromEntries(entries);
 }
+
+export function extractRaidName(input: string): string {
+  // Match the part of the string after the last date-time pattern
+  const regex = /(?:\d{2}:\d{2}\s)(.+)$/;
+  const match = input.match(regex);
+  return match ? match[1].trim() : "";
+}
