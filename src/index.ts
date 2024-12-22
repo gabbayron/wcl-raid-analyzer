@@ -110,6 +110,8 @@ client.on("interactionCreate", async (interaction) => {
   }
 
   if (interaction.isCommand()) {
+    await interaction.deferReply({ ephemeral: true });
+
     if (interaction.commandName === "raid") {
       await handleSingleRaidSummary(interaction);
     }
@@ -182,7 +184,7 @@ client.on("interactionCreate", async (interaction) => {
     }
 
     if (interaction.commandName === "ping-roster") {
-      return await handlePingRoster(interaction);
+      return await handlePingRoster(interaction, client);
     }
   }
 
@@ -314,7 +316,6 @@ function getPaginatedMenu(page: number) {
 
 const handleWeeklyRaidsSummary = async (interaction: Interaction<CacheType>) => {
   if (!interaction.isCommand()) return;
-
   const providedLogIds = interaction.options.get("log_ids")?.value as string;
   const username = interaction.user.globalName;
 

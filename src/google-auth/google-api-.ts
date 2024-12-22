@@ -1,6 +1,7 @@
 import { google } from "googleapis";
 import moment from "moment";
 import path from "path";
+import { extractRaidName } from "../utils";
 
 // Path to your service account key file
 const KEY_FILE = path.join(__dirname, "google-auth.json");
@@ -16,6 +17,7 @@ const SHEET_ID = "1iZjAe1yLa6_8PsjYkZv7usnXE2wtN7vxFuvNfDAf2SI";
 const LOOT_SHEET_ID = "14ucGZODYwpXw4dxhMm7SUQc4daGr0HmL7RefFaZdEh4";
 const PHYSICAL_LOOT_TAB = "Physical Loot";
 const Caster_LOOT_TAB = "Caster Loot";
+const PERSONAL_MRT_OUTPUT_TAB = "Personal_MRT_Output";
 
 async function updateRaidRosterSheet(existingCharacterName: string, newCharacterName: string) {
   const auth = new google.auth.GoogleAuth({
@@ -289,7 +291,7 @@ export async function fetchUserData(splitName: string, spreadsheetId = SHEET_ID)
     });
     const sheets = google.sheets({ version: "v4", auth });
 
-    const range = `${RAID_ROSTER_TAB_NAME}!P2:AB200`;
+    const range = `${RAID_ROSTER_TAB_NAME}!P1:AB200`;
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId,
       range,
@@ -301,37 +303,103 @@ export async function fetchUserData(splitName: string, spreadsheetId = SHEET_ID)
     }
 
     const splitMapping: { [key: string]: string[] } = {};
+    const splitMapToRaidName: { [key: string]: string } = {}; // Maps split keys to first row (e.g., Raid_1, Raid_2, etc.)
+    const splitToCharacterName: any = {};
 
-    // Loop through each column in the splits row (starting from index 2 to skip header and time)
-    for (let colIndex = 2; colIndex < data[2].length; colIndex++) {
-      const split = data[2][colIndex];
+    // Loop through each column in the splits row (row 4, adjusted from previous logic)
+    for (let colIndex = 1; colIndex < data[3].length; colIndex++) {
+      const split = data[3][colIndex]; // Get the split name from row 4
       if (split) {
-        const day = data[0][colIndex].trim(); // Day (from row 0)
-        const time = data[1][colIndex]; // Time (from row 1)
+        const day = data[1][colIndex].trim(); // Day from row 2
+        const time = data[2][colIndex]; // Time from row 3
+        const raidName = data[0][colIndex]; // Raid name from row 1 (e.g., Raid_1)
 
-        // Build the key using day, time, and split name
-        const key = `${day} ${time} ${split}`;
-
-        // Initialize an empty array for the split in the mapping
+        const key = `${day} ${time} ${split}`; // Create the split mapping key
         splitMapping[key] = [];
+        splitMapToRaidName[key] = raidName; // Map the split key to the raid name
 
-        // Loop through the character rows
-        for (let i = 4; i < data.length; i++) {
-          const charName = data[i][0]; // Get the character name (key column)
-          const cellValue = data[i][colIndex]; // Get the value in the current split's column
+        console.log(extractRaidName(key));
+        // Loop through the rows starting from row 5 for characters
+        for (let rowIndex = 4; rowIndex < data.length; rowIndex++) {
+          const charName = data[rowIndex][0]; // Get the character name from the first column
+          const cellValue = data[rowIndex][colIndex]; // Value in the split's column
 
-          // If the cell is non-empty, add the character to the split's array
           if (cellValue && charName) {
             splitMapping[key].push(charName);
+            splitToCharacterName[key]
+              ? (splitToCharacterName[key][charName] = cellValue)
+              : (splitToCharacterName[key] = { [charName]: cellValue });
           }
         }
       }
     }
 
-    // Return the array for the specific split name requested
-    return splitMapping[splitName];
+    if (!splitMapping[splitName]) {
+      throw new Error(`Split "${splitName}" not found.`);
+    }
+    return {
+      splitData: splitMapping[splitName], // Characters in the split
+      raidName: splitMapToRaidName[splitName], // Corresponding raid name (from the first row)
+      splitCharacterNames: splitToCharacterName[splitName],
+    };
   } catch (error) {
     console.error("Error fetching data from Google Sheets:", error);
     throw new Error("Failed to fetch data from Google Sheets.");
   }
+}
+
+export async function reassignRaidAssignments(raidName: string) {
+  const auth = new google.auth.GoogleAuth({
+    keyFile: KEY_FILE,
+    scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+  });
+  const sheets = google.sheets({ version: "v4", auth });
+
+  const rangeToUpdate = "Assignments!B5:B5";
+
+  const updateBody = {
+    range: rangeToUpdate,
+    values: [[raidName]],
+  };
+
+  await sheets.spreadsheets.values.update({
+    spreadsheetId: SHEET_ID,
+    range: rangeToUpdate,
+    valueInputOption: "RAW",
+    requestBody: updateBody,
+  });
+}
+
+export async function fetchPersonalMrtNotes() {
+  const auth = new google.auth.GoogleAuth({
+    keyFile: KEY_FILE,
+    scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"],
+  });
+
+  const sheets = google.sheets({ version: "v4", auth });
+
+  // Fetch data from the Google Sheet
+  const response = await sheets.spreadsheets.values.get({
+    spreadsheetId: SHEET_ID,
+    range: `${PERSONAL_MRT_OUTPUT_TAB}!B1:Z2`,
+  });
+
+  const rows = response.data.values;
+  if (!rows || rows.length === 0) {
+    console.log("No data found.");
+    return [];
+  }
+
+  const assignments = rows[0];
+  const players = rows[1];
+
+  const result: Record<string, string> = {};
+
+  // Map players to their respective assignments
+  players.forEach((player, index) => {
+    const assignment = assignments[index] || "No Assignment"; // Handle missing assignments
+    result[player] = assignment;
+  });
+
+  return result;
 }
