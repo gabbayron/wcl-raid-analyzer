@@ -2,6 +2,7 @@ import { google } from "googleapis";
 import moment from "moment";
 import path from "path";
 import { extractRaidName } from "../utils";
+import { EXPANSIONS } from "../constants";
 
 // Path to your service account key file
 const KEY_FILE = path.join(__dirname, "google-auth.json");
@@ -9,7 +10,14 @@ const KEY_FILE = path.join(__dirname, "google-auth.json");
 export const RAID_ROSTER: Record<string, Set<string>> = {};
 
 // Google Sheets API setup
-const SPREADSHEET_ID = "1iZjAe1yLa6_8PsjYkZv7usnXE2wtN7vxFuvNfDAf2SI";
+export const SPREADSHEET_ID = "1iZjAe1yLa6_8PsjYkZv7usnXE2wtN7vxFuvNfDAf2SI";
+export const FRESH_SPREADSHEET_ID = "10B_uHPuzKr42wOefdLRRNQWscDDbuvry1DGX_SWuMC4";
+
+export const EXPANSION_TO_SHEET = {
+  [EXPANSIONS.CATA]: SPREADSHEET_ID,
+  [EXPANSIONS.FRESH]: FRESH_SPREADSHEET_ID,
+};
+
 const RANGE = "Raid Roster!G6:H500";
 const RANGE_DATABASE_USER = "User_database!A1:C200";
 const RAID_ROSTER_TAB_NAME = "Raid Roster";
@@ -180,7 +188,7 @@ export async function findRowAndUpdateCharacterName(existingCharacterName: strin
   }
 }
 
-export async function fetchRaidRoster() {
+export async function fetchRaidRoster(spreadsheetId = SHEET_ID) {
   try {
     // Authenticate with the service account
     const auth = new google.auth.GoogleAuth({
@@ -192,7 +200,7 @@ export async function fetchRaidRoster() {
 
     // Fetch data from the Google Sheet
     const response = await sheets.spreadsheets.values.get({
-      spreadsheetId: SHEET_ID,
+      spreadsheetId,
       range: RANGE,
     });
 

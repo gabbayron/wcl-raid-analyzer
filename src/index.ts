@@ -14,7 +14,7 @@ import {
 import { authenticateWarcraftLogs } from "./warcraftLogs";
 import {
   DEBUFFS_CHECK_CHANNEL_ID,
-  DMG_DONE_FILTER,
+  DMG_DONE_FILTER_TO_EXPANSION,
   DMG_TAKEN_FILTER_TO_EXPANSION,
   EXPANSIONS,
   GEAR_CHECK_CHANNEL_ID,
@@ -317,6 +317,7 @@ function getPaginatedMenu(page: number) {
 const handleWeeklyRaidsSummary = async (interaction: Interaction<CacheType>) => {
   if (!interaction.isCommand()) return;
   const providedLogIds = interaction.options.get("log_ids")?.value as string;
+  const expansion = interaction.options.get("expansion")?.value as EXPANSIONS;
   const username = interaction.user.globalName;
 
   const logIdsArray = providedLogIds.split(" ").map(extractLogId).filter(Boolean) as string[];
@@ -325,7 +326,7 @@ const handleWeeklyRaidsSummary = async (interaction: Interaction<CacheType>) => 
     content: `Analyzing request ${username}.Received ${logIdsArray.length} log IDs. Generating weekly summary...`,
   });
 
-  const weeklySummary = await generateWeeklyRaidSummary(logIdsArray);
+  const weeklySummary = await generateWeeklyRaidSummary(logIdsArray, expansion);
   const weeklySummaryChannel: any = client.channels.cache.get(WEEKLY_SUMMARY_CHANNEL_ID);
   await sendLongMessage(weeklySummaryChannel, weeklySummary);
   await interaction.followUp({
@@ -345,11 +346,12 @@ const handleSingleRaidSummary = async (interaction: Interaction<CacheType>) => {
   const dmgDoneFilter = interaction.options.get("dmg_done_filter")?.value as string;
   const expansion = interaction.options.get("expansion")?.value as EXPANSIONS;
   const username = interaction.user.globalName;
-  const isCata = expansion === "cata";
+
   const dmgTakenFilterByExpansion = DMG_TAKEN_FILTER_TO_EXPANSION[expansion];
+  const dmgDoneFilterByExpansion = DMG_DONE_FILTER_TO_EXPANSION[expansion];
 
   const dmgTakenFilterExpression = dmgTakenFilter || dmgTakenFilterByExpansion;
-  const dmgDoneFilterExpression = isCata ? dmgDoneFilter || DMG_DONE_FILTER : "";
+  const dmgDoneFilterExpression = dmgDoneFilter || dmgDoneFilterByExpansion;
 
   const randomJoke = await fetchRandomFact();
 

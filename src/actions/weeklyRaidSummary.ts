@@ -1,5 +1,5 @@
-import { Fight, PlayerMap } from "../constants";
-import { fetchRaidRoster } from "../google-auth/google-api-";
+import { EXPANSIONS, Fight, PlayerMap } from "../constants";
+import { EXPANSION_TO_SHEET, fetchRaidRoster } from "../google-auth/google-api-";
 import { formatDuration, formatRaidDate, getKeyByCharacterName } from "../utils";
 import {
   calculateRaidDuration,
@@ -9,7 +9,7 @@ import {
   getValidFights,
 } from "../warcraftLogs";
 
-export async function generateWeeklyRaidSummary(logIds: string[]) {
+export async function generateWeeklyRaidSummary(logIds: string[], expansion: EXPANSIONS) {
   let totalDuration = 0;
   let totalDeaths = 0;
   let totalWipes = 0;
@@ -21,7 +21,9 @@ export async function generateWeeklyRaidSummary(logIds: string[]) {
   let totalTimeBetweenRaids = 0;
   const splitNights = new Set<number>();
 
-  await fetchRaidRoster();
+  const spreadsheetId = EXPANSION_TO_SHEET[expansion];
+
+  await fetchRaidRoster(spreadsheetId);
 
   const raidsData: {
     code: string;

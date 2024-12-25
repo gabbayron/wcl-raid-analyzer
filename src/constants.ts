@@ -63,7 +63,8 @@ export const WEEKLY_SUMMARY_CHANNEL_ID = "1306746576529526885";
 export const GEAR_CHECK_CHANNEL_ID = "1317895351247573072";
 export const DEBUFFS_CHECK_CHANNEL_ID = "1318825066636775567";
 
-export const DMG_DONE_FILTER = `encounterid not in (1206) and target.name NOT IN ("Rageface", "Crystal Prison", "Spirit of the Flame","Dreadflame","Fragment of Rhyolith") OR  (target.name IN ("Riplimb") AND target.spec != "Blood" AND target.spec != "Guardian")`;
+const CATA_DMG_DONE_FILTER = `encounterid not in (1206) and target.name NOT IN ("Rageface", "Crystal Prison", "Spirit of the Flame","Dreadflame","Fragment of Rhyolith") OR  (target.name IN ("Riplimb") AND target.spec != "Blood" AND target.spec != "Guardian")`;
+const FRESH_DMG_FILTER = 'target.name != "Core Rager" AND target.name != "Majordomo Executus" ';
 
 export const CATA_DMG_TAKEN_FILTER =
   '(ability.name IN ("Lava Spew", "Earthquake", "Reckless Leap", "Molten Eruption", "Fiery Tornado", "Firestorm", "Fiery Vortex", "Magma Flow", "Engulfing Flames", "Sulfuras Smash", "Lava Wave", "Scorched Ground", "Sulfuras", "Magma", "Lava Jet", "Molten Barrage") AND ability.id NOT IN (99606,99605,99907,97151)) OR (ability.name IN ("Blazing Claw", "Gushing Wound", "Arcing Slash", "Flame Torrent", "Flame Breath") AND target.spec != "Blood" AND target.spec != "Guardian" AND target.spec != "Feral") OR (ability.id IN (98598) AND target.spec != "Blood" AND target.spec != "Guardian" AND target.spec != "Feral" AND target.spec != "Arms" AND target.spec != "Combat")';
@@ -85,6 +86,11 @@ export const FRESH_SELECTED_DEBUFFS = [
 export const DMG_TAKEN_FILTER_TO_EXPANSION = {
   [EXPANSIONS.CATA]: CATA_DMG_TAKEN_FILTER,
   [EXPANSIONS.FRESH]: FRESH_DMG_TAKEN_FILTER,
+};
+
+export const DMG_DONE_FILTER_TO_EXPANSION = {
+  [EXPANSIONS.CATA]: CATA_DMG_DONE_FILTER,
+  [EXPANSIONS.FRESH]: FRESH_DMG_FILTER,
 };
 
 export const WIPES_CUT_OFF = 6;

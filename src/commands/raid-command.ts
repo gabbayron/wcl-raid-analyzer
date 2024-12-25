@@ -53,6 +53,16 @@ export const RAID_SUMMARY_COMMAND = {
     .setDescription("Weekly raids summary")
     .addStringOption((option) =>
       option.setName("log_ids").setDescription("Provide the log URLs or log IDs separated by spaces").setRequired(true),
+    )
+    .addStringOption((option) =>
+      option
+        .setName("expansion")
+        .setDescription("Expansion")
+        .setRequired(true)
+        .setChoices([
+          { name: "Cata", value: "cata" },
+          { name: "Fresh", value: "fresh" },
+        ]),
     ),
 };
 
