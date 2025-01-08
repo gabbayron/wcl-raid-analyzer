@@ -72,7 +72,6 @@ export const fightsQuery = `
     }
   }
 `;
-
 export const castsQuery = `
   query($logId: String!, $startTime: Float!, $endTime: Float!, $filterExpression: String) {
     reportData {
@@ -112,3 +111,37 @@ export const debuffsQuery = `
     }
   }
 `;
+
+export const buffsQuery = `
+  query($logId: String!, $startTime: Float!, $endTime: Float!, $filterExpression: String) {
+    reportData {
+      report(code: $logId) {
+        events(startTime: $startTime, endTime: $endTime, dataType: Buffs, filterExpression :$filterExpression,limit: 1000) {
+        data
+        }
+      }
+    }
+  }
+`;
+
+export const guildLogs = `
+     query FetchGuildLogs($guildID: Int!, $page: Int!, $startTime: Float!, $endTime: Float!) {
+        reportData {
+          reports(guildID: $guildID, page: $page,startTime: $startTime, endTime: $endTime) {
+            data {
+              code
+              title
+              startTime
+              endTime
+              zone {
+                name
+              }
+            }
+            total
+            per_page
+            current_page
+            has_more_pages
+          }
+        }
+      }
+    `;

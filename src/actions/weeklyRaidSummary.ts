@@ -67,6 +67,7 @@ export async function generateWeeklyRaidSummary(logIds: string[], expansion: EXP
         validFights.map(async (fight) => {
           if (fight.kill === false) {
             wipes += 1;
+            return { events: { data: [] } };
           }
           return fetchDeathsAndWipes(logIds[i], fight.startTime, fight.endTime);
         }),

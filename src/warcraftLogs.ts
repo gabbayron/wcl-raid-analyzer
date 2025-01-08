@@ -1,16 +1,19 @@
 import axios from "axios";
 import {
+  buffsQuery,
   castsQuery,
   debuffsQuery,
   dispelsQuery,
   eventsQuery,
   fightsQuery,
+  guildLogs,
   playerInfoQuery,
   tableQuery,
   tableQueryDamageTaken,
   totalCastsQuery,
 } from "./queries";
-import { EFFECTIVE_SUNDERS_FILTER, EXPANSIONS, Fight, PlayerMap, WIPES_CUT_OFF } from "./constants";
+import { BuffEvent, EFFECTIVE_SUNDERS_FILTER, EXPANSIONS, Fight, PlayerMap, WIPES_CUT_OFF } from "./constants";
+import { RaidData } from "./types";
 
 let accessToken: string | null = null;
 
@@ -128,13 +131,8 @@ export async function fetchCasts(
   logId: string,
   startTime: number,
   endTime: number,
-  expansion: string,
   filterExpression = EFFECTIVE_SUNDERS_FILTER,
 ) {
-  if (expansion === "cata") {
-    return;
-  }
-
   const data = await fetchWarcraftLogsData(castsQuery, {
     logId,
     startTime,
@@ -216,4 +214,42 @@ export async function fetchDispels(logId: string, startTime: number, endTime: nu
   });
 
   return data.reportData.report.table.data.entries[0].entries[0];
+}
+
+export async function fetchBuffsData(logId: string, startTime: number, endTime: number, filterExpression: string) {
+  const data = await fetchWarcraftLogsData(buffsQuery, {
+    logId,
+    startTime,
+    endTime,
+    filterExpression,
+  });
+
+  return data.reportData.report.events.data as BuffEvent[];
+}
+
+export async function getGuildLogs(guildID = 475769, startTime = 1724976000000, endTime = 1730937600000) {
+  const allReports: RaidData[] = [];
+  let currentPage = 1;
+
+  while (true) {
+    const variables = {
+      guildID,
+      page: currentPage,
+      startTime,
+      endTime,
+    };
+
+    const data = await fetchWarcraftLogsData(guildLogs, {
+      ...variables,
+    });
+    const reports = data.reportData.reports.data;
+    allReports.push(...reports);
+
+    if (!data.reportData.reports.has_more_pages) {
+      break;
+    }
+
+    currentPage++;
+  }
+  return allReports;
 }

@@ -11,12 +11,15 @@ export function formatDuration(seconds: number): string {
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
   const secs = Math.floor(seconds % 60);
-  return `${hours}h ${minutes}m ${secs}s`;
+  return hours === 0 ? `${minutes}m ${secs}s` : `${hours}h ${minutes}m ${secs}s`;
 }
-
 // Sort the keys of an object in descending order based on their values
 export function sortByValueDescending<T>(obj: { [key: string]: T }): string[] {
   return Object.keys(obj).sort((a, b) => (obj[b] as any) - (obj[a] as any));
+}
+
+export function sortByValueAscending<T>(obj: { [key: string]: T }): string[] {
+  return Object.keys(obj).sort((a, b) => (obj[a] as any) - (obj[b] as any));
 }
 
 export function extractLogId(input: string) {

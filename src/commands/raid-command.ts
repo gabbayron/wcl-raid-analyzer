@@ -66,6 +66,15 @@ export const RAID_SUMMARY_COMMAND = {
     ),
 };
 
+export const WEEKLY_ESSENTIALS = {
+  data: new SlashCommandBuilder()
+    .setName("weekly_essentials")
+    .setDescription("Weekly raids summary essentials")
+    .addStringOption((option) =>
+      option.setName("log_ids").setDescription("Provide the log URLs or log IDs separated by spaces").setRequired(true),
+    ),
+};
+
 export const ADD_COMMAND = {
   data: new SlashCommandBuilder()
     .setName("add")
@@ -122,4 +131,15 @@ export const RAID_PING_COMMAND = {
     .addStringOption((option) =>
       option.setName("whisper_key_word").setDescription("Whisper key word").setRequired(true),
     ),
+};
+
+export const CREATE_RAID_COMMAND = {
+  data: new SlashCommandBuilder()
+    .setName("create_raid")
+    .setDescription("Assign raid roster")
+    .addStringOption((option) => option.setName("raid_date").setDescription("Raid date").setRequired(true)),
+};
+
+export const GUILD_LOGS_COMMAND = {
+  data: new SlashCommandBuilder().setName("guild_logs").setDescription("Get guild logs"),
 };

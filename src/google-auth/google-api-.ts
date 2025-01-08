@@ -26,6 +26,7 @@ const LOOT_SHEET_ID = "14ucGZODYwpXw4dxhMm7SUQc4daGr0HmL7RefFaZdEh4";
 const PHYSICAL_LOOT_TAB = "Physical Loot";
 const Caster_LOOT_TAB = "Caster Loot";
 const PERSONAL_MRT_OUTPUT_TAB = "Personal_MRT_Output";
+const ABSENCE_TAB = "Absence";
 
 async function updateRaidRosterSheet(existingCharacterName: string, newCharacterName: string) {
   const auth = new google.auth.GoogleAuth({
@@ -252,7 +253,7 @@ export async function fetchCharacterNames() {
 
 export async function getRaidNames(spreadsheetId = SHEET_ID) {
   const auth = new google.auth.GoogleAuth({
-    keyFile: KEY_FILE, // Path to your service account key file
+    keyFile: KEY_FILE,
     scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"],
   });
 
@@ -410,4 +411,95 @@ export async function fetchPersonalMrtNotes() {
   });
 
   return result;
+}
+
+export async function getAllCharacters(spreadsheetId = SHEET_ID) {
+  const auth = new google.auth.GoogleAuth({
+    keyFile: KEY_FILE,
+    scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"],
+  });
+
+  const sheets = google.sheets({ version: "v4", auth });
+
+  const response = await sheets.spreadsheets.values.get({
+    spreadsheetId,
+    range: `${RAID_ROSTER_TAB_NAME}!C:L`,
+  });
+
+  const rows = response.data.values;
+
+  if (!rows || rows.length === 0) {
+    console.log("No data found in the range.");
+    return {};
+  }
+
+  const availableCharacters: Record<string, { name: string; spec: string; rank: string }[]> = {};
+
+  rows.forEach((row) => {
+    const [rank, , , , charName, name, , , , spec] = row;
+
+    if (!charName || !name || !spec || rank.trim() === "✘") {
+      // Skip if data is incomplete or character is marked unavailable
+      return;
+    }
+
+    if (charName === "!ZZTemplate") {
+      return;
+    }
+
+    if (!availableCharacters[charName]) {
+      availableCharacters[charName] = [];
+    }
+
+    availableCharacters[charName].push({
+      name: name.trim(),
+      spec: spec.trim(),
+      rank: rank.trim(),
+    });
+  });
+
+  return availableCharacters;
+}
+
+export async function fetchAbsencesForDate(date: string) {
+  const auth = new google.auth.GoogleAuth({
+    keyFile: KEY_FILE,
+    scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"],
+  });
+
+  const sheets = google.sheets({ version: "v4", auth });
+
+  const response = await sheets.spreadsheets.values.get({
+    spreadsheetId: SHEET_ID,
+    range: `${ABSENCE_TAB}!A1:Z200`,
+  });
+
+  const rows = response.data.values;
+  if (!rows || rows.length === 0) {
+    console.log("No data found.");
+    return [];
+  }
+
+  const headerRow = rows[0].map((rowDate) => rowDate.trim());
+  const playerRows = rows.slice(1);
+
+  // Find the column index for the given date
+  const dateIndex = headerRow.indexOf(date);
+  if (dateIndex === -1) {
+    throw new Error(`Date "${date}" not found in the sheet.`);
+  }
+
+  const absences: { playerName: string; status: "absent" | "late" }[] = [];
+
+  // Process each player row to collect absences or late statuses
+  playerRows.forEach((row) => {
+    const playerName = row[0]; // First column contains player names
+    const status = row[dateIndex]?.toLowerCase();
+
+    if (status === "absent" || status === "late") {
+      absences.push({ playerName, status: status as "absent" | "late" });
+    }
+  });
+
+  return absences;
 }

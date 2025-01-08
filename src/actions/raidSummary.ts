@@ -1,9 +1,14 @@
 import { generateChart } from "../charts/chart";
 import {
+  BuffEvent,
+  CATA_GLOVES_USAGE,
   CLASS_COLORS,
   classIcons,
   DAMAGE_SCHOOL_COLORS,
+  EXPANSIONS,
   Fight,
+  PlayerMap,
+  POTIONS_QUERY_BY_EXPANSION,
   TOP_DMG_TAKEN_BY_ABILITY_CHART_TITLE,
   TOP_DMG_TAKEN_CHART_DESCRIPTION,
   TOP_DMG_TAKEN_CHART_TITLE,
@@ -14,12 +19,14 @@ import {
   formatDuration,
   formatRaidDate,
   numberWithCommas,
+  sortByValueAscending,
   sortByValueDescending,
   sortObjectByValueDesc,
 } from "../utils";
 import {
   calculateRaidDuration,
   createDmgDoneUrl,
+  fetchBuffsData,
   fetchDamageData,
   fetchDamageTakenData,
   fetchDeathsAndWipes,
@@ -33,7 +40,7 @@ export async function generateRaidSummary(
   logId: string,
   dmgTakenFilterExpression: string,
   dmgDoneFilterExpression: string,
-  expansion: string,
+  expansion: EXPANSIONS,
 ) {
   // Fetch raid info and player info in parallel
   const [raidData, playerMap] = await Promise.all([fetchFights(logId), fetchPlayerInfo(logId)]);
@@ -51,22 +58,43 @@ export async function generateRaidSummary(
   const playerDamageTaken: { [key: string]: number } = {};
   const playerDeaths: { [key: string]: number } = {};
   const dmgTakenByAbility: { [key: string]: number } = {};
+  const potionsUsage: { [key: string]: number } = {};
+  const glovesUsage: { [key: string]: number } = {};
+  const potionFilter = POTIONS_QUERY_BY_EXPANSION[expansion];
 
   // Filter out invalid fights in advance
   const validFights = getValidFights(fights);
   const raidDuration = calculateRaidDuration(validFights);
 
-  // const data = await fetchGear(logId);
+  const alysrazorFight = validFights.find((fight) => fight.name === "Alysrazor" && fight.kill === true);
+
+  const alysrazorBuffs =
+    expansion === EXPANSIONS.CATA
+      ? await fetchBuffsData(logId, alysrazorFight?.startTime!, alysrazorFight?.endTime!, "ability.id IN(99461)")
+      : [];
+
+  const alyszrazorStacksData = calculateStackTimes(alysrazorBuffs, playerMap, alysrazorFight?.startTime!);
+  const sortedAlysrazorsortByValueDescending = sortByValueAscending(alyszrazorStacksData);
+
+  let alysrazorBuffSummary = "";
+
+  sortedAlysrazorsortByValueDescending.forEach((playerName, i) => {
+    const top3Index = [0, 1, 2];
+    alysrazorBuffSummary += top3Index.includes(i)
+      ? `${i + 1}) ${playerName} : ${formatDuration(alyszrazorStacksData[playerName])} \n`
+      : `${playerName} : ${formatDuration(alyszrazorStacksData[playerName])} \n`;
+  });
 
   // Fetch all data for each fight concurrently
   await Promise.all(
     validFights.map(async (fight) => {
       const { startTime, endTime, kill, id: fightId } = fight;
 
-      const [dmgDoneData, dmgTakenData, deathAndWipeData] = await Promise.all([
+      const [dmgDoneData, dmgTakenData, deathAndWipeData, potionsUsageData] = await Promise.all([
         fetchDamageData(logId, startTime, endTime, dmgDoneFilterExpression),
         fetchDamageTakenData(logId, fightId, dmgTakenFilterExpression),
         fetchDeathsAndWipes(logId, startTime, endTime),
+        fetchBuffsData(logId, startTime, endTime, potionFilter),
       ]);
 
       // Process damage done
@@ -112,14 +140,27 @@ export async function generateRaidSummary(
         }
       });
 
+      const markedBuffsEvents: Record<string, boolean> = {};
+
+      processBuffUsage(Object.values(potionsUsageData), potionsUsage, markedBuffsEvents, playerMap);
+
+      const glovesUsageData =
+        expansion === EXPANSIONS.CATA ? await fetchBuffsData(logId, startTime, endTime, CATA_GLOVES_USAGE) : [];
+
+      processBuffUsage(Object.values(glovesUsageData), glovesUsage, markedBuffsEvents, playerMap);
+
       // Increment total wipes if fight was not a kill
-      if (kill === false) totalWipes++;
+      if (kill === false) {
+        totalWipes++;
+      }
     }),
   );
 
   // Sorting and grouping
   const sortedDamageTaken = sortByValueDescending(playerDamageTaken);
   const sortedDamageDealers = sortByValueDescending(playerDamage);
+  const sortedPotionsUsage = sortByValueDescending(potionsUsage);
+  const sortedGlovesUsage = sortByValueDescending(glovesUsage);
 
   const groupedByClass: { [classType: string]: string[] } = {};
 
@@ -132,6 +173,8 @@ export async function generateRaidSummary(
   const dmgDealtToChart: { name: string; total: number; color: string }[] = [];
   const dmgTakenDataToChart: { name: string; total: number; color: string }[] = [];
   const dmgTakenByAbilityChartData: { name: string; total: number; color: string }[] = [];
+  const potionsUsageChartData: { name: string; total: number; color: string }[] = [];
+  const glovesUsageChartData: { name: string; total: number; color: string }[] = [];
 
   const sortedDmgTakenByAbility = sortObjectByValueDesc(dmgTakenByAbility);
 
@@ -178,6 +221,52 @@ export async function generateRaidSummary(
     })
     .join("\n");
 
+  sortedPotionsUsage.forEach((player) => {
+    let playerNameWithClass: string;
+    playerNameWithClass = Object.keys(playerDamage).find(
+      (name) => name.includes(player) && !name.includes("_TricksOfTheTrade"),
+    )!;
+    if (!playerNameWithClass) {
+      playerNameWithClass = Object.keys(playerDamageTaken).find((name) => name.includes(player))!;
+    }
+    if (!playerNameWithClass) {
+      return;
+    }
+    const [, playerClass] = playerNameWithClass.split("_");
+
+    potionsUsageChartData.push({
+      name: `${player}`,
+      total: potionsUsage[player],
+      color: CLASS_COLORS[playerClass],
+    });
+  });
+
+  sortedGlovesUsage.forEach((player) => {
+    let playerNameWithClass: string;
+    playerNameWithClass = Object.keys(playerDamage).find(
+      (name) => name.includes(player) && !name.includes("_TricksOfTheTrade"),
+    )!;
+
+    if (!playerNameWithClass) {
+      playerNameWithClass = Object.keys(playerDamageTaken).find((name) => name.includes(player))!;
+    }
+
+    if (!playerNameWithClass) {
+      return;
+    }
+
+    const [, playerClass] = playerNameWithClass.split("_");
+
+    glovesUsageChartData.push({
+      name: `${player}`,
+      total: glovesUsage[player],
+      color: CLASS_COLORS[playerClass],
+    });
+  });
+
+  const potionUsageChart = await generateChart(potionsUsageChartData, "Potions usage", "Potions usage");
+  const glovesUsageChart = await generateChart(glovesUsageChartData, "Gloves usage", "Gloves usage");
+
   const dmgChart = await generateChart(dmgDealtToChart, TOP_DPS_CHART_TITLE, TOP_DPS_CHART_DESCRIPTION);
 
   const dmgTakenChart = await generateChart(
@@ -202,9 +291,66 @@ export async function generateRaidSummary(
     .join("\n");
 
   const formattedDate = formatRaidDate(raidStartTime);
-
+  // **\n**Roster**\n${raidRoster}\n
   const WclUrl = await generateWarcraftLogsUrl(logId, dmgTakenFilterExpression, 38, expansion);
   const dmgDoneUrl = await createDmgDoneUrl(logId, dmgDoneFilterExpression, expansion);
-  const string = `**${title} - ${formattedDate} - ${dmgDoneUrl}\n**\n**Roster**\n${raidRoster}\n\n**Raid Duration**: ${formatDuration(raidDuration)}\n**Total Damage Done**: ${numberWithCommas(totalDamage)}\n**Total Avoidable Damage Taken**: ${numberWithCommas(totalDamageTaken)}\n**Total Deaths**: ${totalDeaths}\n**Total Wipes**: ${totalWipes}\n\n**Top 10 DPS**:\n${dmgDealersSummary}\n\n**Top 10 Avoidable Damage Taken**:\n${dmgTakenSummary}\n\n**Deaths by Player (top 5)**:\n${deathsSummary}\n\n**Damage Taken Log breakdown** ${WclUrl}\n\n`;
-  return { string, charts: [dmgChart, dmgTakenChart, dmgTakenByAbilityChart] };
+  const string = `**${title}** - ${formattedDate} - ${dmgDoneUrl}\n\n**Raid Duration**: ${formatDuration(raidDuration)}\n**Total Damage Done**: ${numberWithCommas(totalDamage)}\n**Total Avoidable Damage Taken**: ${numberWithCommas(totalDamageTaken)}\n**Total Deaths**: ${totalDeaths}\n**Total Wipes**: ${totalWipes}\n\n**Top 10 DPS**:\n${dmgDealersSummary}\n\n**Top 10 Avoidable Damage Taken**:\n${dmgTakenSummary}\n\n**Deaths by Player (top 5)**:\n${deathsSummary}${expansion === EXPANSIONS.CATA ? `\n\n**Alysrazor 25 stacks timer**\n${alysrazorBuffSummary}` : ""}\n\n**Damage Taken Log breakdown** ${WclUrl}\n\n`;
+  return { string, charts: [dmgChart, dmgTakenChart, dmgTakenByAbilityChart, potionUsageChart, glovesUsageChart] };
 }
+
+const processBuffUsage = (
+  data: BuffEvent[],
+  usageMap: { [key: string]: number },
+  markedEvents: Record<string, boolean>,
+  playerMap: Record<number, string>,
+) => {
+  data.forEach((entry) => {
+    const playerName = playerMap[entry.targetID];
+    const playerKey = `${playerName}_${entry.abilityGameID}`;
+
+    if (!usageMap[playerName]) {
+      usageMap[playerName] = 0;
+    }
+
+    if (entry.type === "applybuff") {
+      if (!markedEvents[playerKey]) {
+        usageMap[playerName]++;
+        markedEvents[playerKey] = true;
+      }
+    } else if (entry.type === "removebuff") {
+      if (markedEvents[playerKey]) {
+        markedEvents[playerKey] = false;
+      } else {
+        usageMap[playerName]++;
+      }
+    }
+  });
+};
+
+export const calculateStackTimes = (events: BuffEvent[], playerMap: PlayerMap, startTimestamp: number) => {
+  const stackEndTimes: { [key: number]: number } = {}; // Stores the end timestamp when reaching 25 stacks of 99461
+  const stackTimes: { [key: string]: number } = {}; // Stores the stack times per player
+
+  events.forEach((event) => {
+    const { targetID, abilityGameID, timestamp, stack } = event;
+
+    if (abilityGameID === 99461) {
+      if (stack === 25 && !(targetID in stackEndTimes)) {
+        stackEndTimes[targetID] = timestamp; // Record end time when reaching 25 stacks
+      }
+    }
+  });
+
+  // Calculate time taken for each player to reach from 3 stacks of 97128 to 25 stacks of 99461
+  Object.keys(stackEndTimes).forEach((targetID) => {
+    const endTimestamp = stackEndTimes[Number(targetID)];
+
+    if (startTimestamp && endTimestamp) {
+      const timeToStack = endTimestamp - startTimestamp;
+      const playerName = playerMap[Number(targetID)] || "Unknown";
+      stackTimes[playerName] = timeToStack / 1000;
+    }
+  });
+
+  return stackTimes;
+};

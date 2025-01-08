@@ -105,7 +105,7 @@ export async function generateGearCheck(logId: string, expansion: string): Promi
   await Promise.all(
     validFights.map(async (fight) => {
       const { startTime, endTime } = fight;
-      const castsData = await fetchCasts(logId, startTime, endTime, expansion);
+      const castsData = await fetchCasts(logId, startTime, endTime);
       castsData.forEach((entry: any) => {
         const playerName = `${entry.name}`;
         sundersByPlayer[playerName] = (sundersByPlayer[playerName] || 0) + entry.total;

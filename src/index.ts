@@ -26,13 +26,16 @@ import dotenv from "dotenv";
 import { fetchRandomFact } from "./randomFact";
 import {
   ADD_COMMAND,
+  CREATE_RAID_COMMAND,
   DEBUFFS_COMMAND,
   GEAR_CHECK,
+  GUILD_LOGS_COMMAND,
   RAID_COMMAND,
   RAID_OPTIONS,
   RAID_PING_COMMAND,
   RAID_SUMMARY_COMMAND,
   RENAME_NAME_COMMAND,
+  WEEKLY_ESSENTIALS,
 } from "./commands/raid-command";
 import { generateRaidSummary } from "./actions/raidSummary";
 import { generateWeeklyRaidSummary } from "./actions/weeklyRaidSummary";
@@ -45,6 +48,9 @@ import {
 import { generateGearCheck } from "./actions/gearCheck";
 import { generateDebuffsSummary } from "./actions/debuffsSummary";
 import { handlePingRoster } from "./actions/pingRoster";
+import { handleCreateRaid } from "./actions/createRaid";
+import { handleLongSummary } from "./actions/longTimeSummary";
+import { generateWeeklyEssentialsRaidSummary } from "./actions/weeklyEssentialsSummary";
 
 dotenv.config();
 authenticateWarcraftLogs();
@@ -62,6 +68,9 @@ const commands = [
   GEAR_CHECK,
   DEBUFFS_COMMAND,
   RAID_PING_COMMAND,
+  CREATE_RAID_COMMAND,
+  GUILD_LOGS_COMMAND,
+  WEEKLY_ESSENTIALS,
 ].map((command) => command.data.toJSON());
 
 const rest = new REST({ version: "10" }).setToken(process.env.DISCORD_TOKEN!);
@@ -127,6 +136,10 @@ client.on("interactionCreate", async (interaction) => {
       await handleDebuffs(interaction);
     }
 
+    if (interaction.commandName === "guild_logs") {
+      await handleLongSummary(interaction, client);
+    }
+
     if (interaction.commandName === "add") {
       const userName = interaction.user.username;
       const { discordId, playerName } = await getCharNameByDiscordUsername(userName);
@@ -183,8 +196,16 @@ client.on("interactionCreate", async (interaction) => {
       });
     }
 
+    if (interaction.commandName === "weekly_essentials") {
+      await handleWeeklyEssentialsRaidsSummary(interaction);
+    }
+
     if (interaction.commandName === "ping-roster") {
       return await handlePingRoster(interaction, client);
+    }
+
+    if (interaction.commandName === "create_raid") {
+      return await handleCreateRaid(interaction);
     }
   }
 
@@ -327,6 +348,27 @@ const handleWeeklyRaidsSummary = async (interaction: Interaction<CacheType>) => 
   });
 
   const weeklySummary = await generateWeeklyRaidSummary(logIdsArray, expansion);
+  const weeklySummaryChannel: any = client.channels.cache.get(WEEKLY_SUMMARY_CHANNEL_ID);
+  await sendLongMessage(weeklySummaryChannel, weeklySummary);
+  await interaction.followUp({
+    content: `Details have been sent to the specified channel: ${weeklySummaryChannel}`,
+    ephemeral: true,
+  });
+};
+
+const handleWeeklyEssentialsRaidsSummary = async (interaction: Interaction<CacheType>) => {
+  if (!interaction.isCommand()) return;
+  const providedLogIds = interaction.options.get("log_ids")?.value as string;
+  const username = interaction.user.globalName;
+
+  const logIdsArray = providedLogIds.split(" ").map(extractLogId).filter(Boolean) as string[];
+
+  await interaction.followUp({
+    content: `Analyzing request ${username}.Received ${logIdsArray.length} log IDs. Generating weekly summary...`,
+  });
+
+  const weeklySummary = await generateWeeklyEssentialsRaidSummary(logIdsArray);
+
   const weeklySummaryChannel: any = client.channels.cache.get(WEEKLY_SUMMARY_CHANNEL_ID);
   await sendLongMessage(weeklySummaryChannel, weeklySummary);
   await interaction.followUp({

@@ -1,3 +1,4 @@
+import axios from "axios";
 import { EmbedBuilder } from "discord.js";
 import QuickChart from "quickchart-js";
 
@@ -8,8 +9,7 @@ export async function generateChart(
 ): Promise<EmbedBuilder> {
   const chart = new QuickChart();
   chart.setBackgroundColor("black");
-
-  chart.setConfig({
+  const chartConfig = {
     type: "horizontalBar",
     data: {
       labels: data.map((player) => player.name),
@@ -21,6 +21,8 @@ export async function generateChart(
       ],
     },
     options: {
+      responsive: true,
+      maintainAspectRatio: false,
       legend: { display: false },
       title: {
         display: true,
@@ -62,12 +64,22 @@ export async function generateChart(
         ],
       },
     },
-  });
-  chart.setWidth(1200);
-  chart.setHeight(600);
+  };
+
+  chart.setConfig(chartConfig);
+  chart.setWidth(1400);
+  chart.setHeight(700);
 
   const chartUrl = chart.getUrl();
-  const embed = new EmbedBuilder().setTitle(title).setDescription(description).setImage(chartUrl!).setColor(0x00aeff);
+  const { data: shortenedUrl } = await axios.get(
+    `https://tinyurl.com/api-create.php?url=${encodeURIComponent(chartUrl)}`,
+  );
+
+  const embed = new EmbedBuilder()
+    .setTitle(title)
+    .setDescription(description)
+    .setImage(shortenedUrl!)
+    .setColor(0x00aeff);
   return embed;
 }
 

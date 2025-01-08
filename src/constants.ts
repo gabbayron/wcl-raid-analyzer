@@ -67,7 +67,7 @@ const CATA_DMG_DONE_FILTER = `encounterid not in (1206) and target.name NOT IN (
 const FRESH_DMG_FILTER = 'target.name != "Core Rager" AND target.name != "Majordomo Executus" ';
 
 export const CATA_DMG_TAKEN_FILTER =
-  '(ability.name IN ("Lava Spew", "Earthquake", "Reckless Leap", "Molten Eruption", "Fiery Tornado", "Firestorm", "Fiery Vortex", "Magma Flow", "Engulfing Flames", "Sulfuras Smash", "Lava Wave", "Scorched Ground", "Sulfuras", "Magma", "Lava Jet", "Molten Barrage") AND ability.id NOT IN (99606,99605,99907,97151)) OR (ability.name IN ("Blazing Claw", "Gushing Wound", "Arcing Slash", "Flame Torrent", "Flame Breath") AND target.spec != "Blood" AND target.spec != "Guardian" AND target.spec != "Feral") OR (ability.id IN (98598) AND target.spec != "Blood" AND target.spec != "Guardian" AND target.spec != "Feral" AND target.spec != "Arms" AND target.spec != "Combat")';
+  '(ability.name IN ("Lava Spew", "Earthquake", "Molten Eruption", "Fiery Tornado", "Firestorm", "Fiery Vortex", "Magma Flow", "Engulfing Flames", "Sulfuras Smash", "Lava Wave", "Scorched Ground", "Sulfuras", "Magma", "Lava Jet", "Molten Barrage") AND ability.id NOT IN (99606,99605,99907,97151)) OR (ability.name IN ("Blazing Claw", "Gushing Wound", "Arcing Slash", "Flame Torrent", "Flame Breath") AND target.spec != "Blood" AND target.spec != "Guardian" AND target.spec != "Feral") OR (ability.id IN (98598) AND target.spec != "Blood" AND target.spec != "Guardian" AND target.spec != "Feral" AND target.spec != "Arms" AND target.spec != "Combat")';
 
 export const FRESH_DMG_TAKEN_FILTER = `(ability.id IN (12100, 20605, 19450, 19411, 19717, 19497, 19695)) OR (ability.id IN (20603, 11669) AND target.class IN ("Priest", "Mage", "Druid", "Warlock", "Hunter"))`;
 
@@ -83,6 +83,20 @@ export const FRESH_SELECTED_DEBUFFS = [
   "Demoralizing Shout",
 ];
 
+const CATA_POTIONS_USAGE = `ability.name IN ("Tol'vir Agility", "Golem's Strength", "Volcanic Power")`;
+const FRESH_POTIONS_USAGE = `ability.name IN ("Mighty Rage")`;
+
+export const CATA_GLOVES_USAGE = `ability.name IN ("Synapse Springs")`;
+
+export const EXPLOSIVES_FILTER = "ability.id IN (82207, 89637, 56488, 56350)";
+
+export const POTIONS_QUERY_BY_EXPANSION = {
+  [EXPANSIONS.CATA]: CATA_POTIONS_USAGE,
+  [EXPANSIONS.FRESH]: FRESH_POTIONS_USAGE,
+};
+
+export const GLOVE_SPELL_IDS = [96228, 96229, 96230];
+
 export const DMG_TAKEN_FILTER_TO_EXPANSION = {
   [EXPANSIONS.CATA]: CATA_DMG_TAKEN_FILTER,
   [EXPANSIONS.FRESH]: FRESH_DMG_TAKEN_FILTER,
@@ -95,6 +109,16 @@ export const DMG_DONE_FILTER_TO_EXPANSION = {
 
 export const WIPES_CUT_OFF = 6;
 
+export type BuffEvent = {
+  timestamp: number;
+  type: "applybuff" | "removebuff" | "applybuffstack";
+  sourceID: number;
+  targetID: number;
+  abilityGameID: number;
+  fight: number;
+  pin: string;
+  stack: number;
+};
 export interface Fight {
   id: number;
   name: string;
@@ -200,3 +224,33 @@ export interface PlayerDetails {
     setID?: number;
   }[];
 }
+
+export const RAID_ROLES = {
+  Tanks: ["Blood", "Protection-Paladin", "Protection-Warrior", "Feral"],
+  DPS: [
+    "Unholy",
+    "Frost-DK",
+    "Blood DPS",
+    "Balance",
+    "Feral DPS",
+    "Beast Master",
+    "Marksman",
+    "Survival",
+    "Arcane",
+    "Fire",
+    "Frost-Mage",
+    "Retribution",
+    "Shadow",
+    "Assassination",
+    "Combat",
+    "Subtlety",
+    "Affliction",
+    "Demonology",
+    "Destruction",
+    "Arms",
+    "Fury",
+    "Elemental",
+    "Enhancement",
+  ],
+  Healers: ["Holy-Paladin", "Holy-Priest", "Restoration-Shaman", "Restoration-Druid", "Discipline", "Holy-Priest"],
+};
