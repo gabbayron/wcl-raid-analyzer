@@ -13,6 +13,7 @@ export const RAID_COMMAND = {
         .setChoices([
           { name: "Cata", value: "cata" },
           { name: "Fresh", value: "fresh" },
+          { name: "Retail", value: "retail" },
         ]),
     )
     .addStringOption((option) =>
@@ -37,6 +38,9 @@ export const GEAR_CHECK = {
           { name: "Cata", value: "cata" },
           { name: "Fresh", value: "fresh" },
         ]),
+    )
+    .addBooleanOption((option) =>
+      option.setName("strict_check").setDescription("Enable strict gear check").setRequired(false),
     ),
 };
 
@@ -142,4 +146,8 @@ export const CREATE_RAID_COMMAND = {
 
 export const GUILD_LOGS_COMMAND = {
   data: new SlashCommandBuilder().setName("guild_logs").setDescription("Get guild logs"),
+};
+
+export const AUTHENTICATE = {
+  data: new SlashCommandBuilder().setName("authenticate").setDescription("Authenticate with wcl"),
 };

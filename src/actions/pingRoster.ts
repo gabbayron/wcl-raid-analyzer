@@ -76,7 +76,7 @@ export async function handlePingRoster(interaction: Interaction<CacheType>, clie
   await Promise.all(sendMessages);
 }
 
-const generateMentions = (playerToUserId: PlayerToUserId): string => {
+export const generateMentions = (playerToUserId: PlayerToUserId): string => {
   return Object.values(playerToUserId)
     .filter((userId) => userId !== null) // Exclude null values
     .map((userId) => `<@${userId}>`) // Format as Discord mentions

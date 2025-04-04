@@ -4,6 +4,7 @@ import { fetchDebuffs, fetchFights, getValidFights } from "../warcraftLogs";
 export async function generateDebuffsSummary(logId: string): Promise<string> {
   const encountersDebuffsUptime: { [key: string]: { totalTime: number; totalUptime: number } } = {};
   const trashDebuffsUptime: { [key: string]: { totalTime: number; totalUptime: number } } = {};
+  const allDebuffsUptime: { [key: string]: { totalTime: number; totalUptime: number } } = {};
 
   const raidData = await fetchFights(logId);
 
@@ -43,11 +44,14 @@ export async function generateDebuffsSummary(logId: string): Promise<string> {
     }),
   );
 
-  const encounters = calculateUptimePercentages(
-    encountersDebuffsUptime,
-    encountersDebuffsUptime["Faerie Fire"].totalTime,
+
+  const highestUptimeKey = Object.entries(encountersDebuffsUptime).reduce(
+    (maxKey, [key, value]) => (value.totalUptime > encountersDebuffsUptime[maxKey].totalUptime ? key : maxKey),
+    Object.keys(encountersDebuffsUptime)[0] // Start with the first key
   );
-  const trash = calculateUptimePercentages(trashDebuffsUptime, trashDebuffsUptime["Faerie Fire"].totalTime);
+
+  const encounters = calculateUptimePercentages(encountersDebuffsUptime, encountersDebuffsUptime[highestUptimeKey].totalTime);
+  const trash = calculateUptimePercentages(trashDebuffsUptime, trashDebuffsUptime[highestUptimeKey].totalTime);
 
   return `**__Debuffs uptime %__**\n\n**Encounters**:\n${encounters}\n\n**Trash**\n${trash}`;
 }

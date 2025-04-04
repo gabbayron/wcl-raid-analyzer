@@ -61,6 +61,9 @@ export const fightsQuery = `
         title
         startTime
         endTime
+        guild {
+          name
+        }
         fights {
           id
           startTime

@@ -26,6 +26,7 @@ import dotenv from "dotenv";
 import { fetchRandomFact } from "./randomFact";
 import {
   ADD_COMMAND,
+  AUTHENTICATE,
   CREATE_RAID_COMMAND,
   DEBUFFS_COMMAND,
   GEAR_CHECK,
@@ -51,9 +52,9 @@ import { handlePingRoster } from "./actions/pingRoster";
 import { handleCreateRaid } from "./actions/createRaid";
 import { handleLongSummary } from "./actions/longTimeSummary";
 import { generateWeeklyEssentialsRaidSummary } from "./actions/weeklyEssentialsSummary";
+import { app } from "./server";
 
 dotenv.config();
-authenticateWarcraftLogs();
 
 const client = new Client({
   intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent],
@@ -71,6 +72,7 @@ const commands = [
   CREATE_RAID_COMMAND,
   GUILD_LOGS_COMMAND,
   WEEKLY_ESSENTIALS,
+  AUTHENTICATE,
 ].map((command) => command.data.toJSON());
 
 const rest = new REST({ version: "10" }).setToken(process.env.DISCORD_TOKEN!);
@@ -93,199 +95,213 @@ const userSelections = new Map<string, { absenceType?: string; startDate?: strin
 const raidRosterCharactersMap = new Map<string, { name: string; value: string }[]>();
 
 client.on("interactionCreate", async (interaction) => {
-  if (interaction.isAutocomplete() && interaction.commandName === "rename_character") {
-    const userName = interaction.user.username;
-    const { playerName } = await getCharNameByDiscordUsername(userName);
-
-    if (!playerName) {
-      return await interaction.respond([]);
-    }
-    const playerCachedCharacters = raidRosterCharactersMap.get(playerName);
-    if (playerCachedCharacters) {
-      console.log(`${playerName} characters cached, returning cached values`);
-      return await interaction.respond(playerCachedCharacters);
-    }
-
-    const raidRoster = await fetchRaidRoster();
-    const charactersResponse: { name: string; value: string }[] = [];
-    raidRoster[playerName].forEach((char) => charactersResponse.push({ name: char, value: char }));
-    raidRosterCharactersMap.set(playerName, charactersResponse);
-    return await interaction.respond(charactersResponse);
-  }
-
-  if (interaction.isAutocomplete() && interaction.commandName === "ping-roster") {
-    const raidNames = await getRaidNames();
-    await interaction.respond(raidNames.map((name) => ({ name, value: name })));
-  }
-
-  if (interaction.isCommand()) {
-    await interaction.deferReply({ ephemeral: true });
-
-    if (interaction.commandName === "raid") {
-      await handleSingleRaidSummary(interaction);
-    }
-
-    if (interaction.commandName === "weekly_raids_summary") {
-      await handleWeeklyRaidsSummary(interaction);
-    }
-
-    if (interaction.commandName === "gear_check") {
-      await handleGearCheck(interaction);
-    }
-    if (interaction.commandName === "debuffs") {
-      await handleDebuffs(interaction);
-    }
-
-    if (interaction.commandName === "guild_logs") {
-      await handleLongSummary(interaction, client);
-    }
-
-    if (interaction.commandName === "add") {
+  try {
+    if (interaction.isAutocomplete() && interaction.commandName === "rename_character") {
       const userName = interaction.user.username;
-      const { discordId, playerName } = await getCharNameByDiscordUsername(userName);
+      const { playerName } = await getCharNameByDiscordUsername(userName);
 
       if (!playerName) {
-        return await interaction.followUp({
-          content: `Character name for ${discordId} not found. Please contact leadership`,
-        });
+        return await interaction.respond([]);
+      }
+      const playerCachedCharacters = raidRosterCharactersMap.get(playerName);
+      if (playerCachedCharacters) {
+        console.log(`${playerName} characters cached, returning cached values`);
+        return await interaction.respond(playerCachedCharacters);
       }
 
-      await interaction.followUp({ content: playerName, ephemeral: true });
+      const raidRoster = await fetchRaidRoster();
+      const charactersResponse: { name: string; value: string }[] = [];
+      raidRoster[playerName].forEach((char) => charactersResponse.push({ name: char, value: char }));
+      raidRosterCharactersMap.set(playerName, charactersResponse);
+      return await interaction.respond(charactersResponse);
     }
 
-    if (interaction.commandName === "rename_character") {
-      const userName = interaction.user.username;
-      const existingCharacterName = interaction.options.get("existing_character_name")?.value as string;
-      const newCharacterName = interaction.options.get("new_character_name")?.value as string;
+    if (interaction.isAutocomplete() && interaction.commandName === "ping-roster") {
+      const raidNames = await getRaidNames();
+      await interaction.respond(raidNames.map((name) => ({ name, value: name })));
+    }
 
-      const { discordId, playerName } = await getCharNameByDiscordUsername(userName);
+    if (interaction.isCommand()) {
+      await interaction.deferReply({ ephemeral: true });
 
-      if (!playerName) {
-        return await interaction.followUp({
-          content: `Character name for ${discordId} not found. Please contact leadership`,
-        });
+      if (interaction.commandName === "authenticate") {
+        const authURL = `http://localhost:3000/oauth`;
+        await interaction.followUp(`Authenticate with Warcraft Logs here: ${authURL}`);
       }
 
-      const playerCachedCharacterNames = raidRosterCharactersMap.get(playerName)?.map(({ name }) => name);
-      if (!playerCachedCharacterNames?.includes(existingCharacterName)) {
+      if (interaction.commandName === "raid") {
+        await handleSingleRaidSummary(interaction);
+      }
+
+      if (interaction.commandName === "weekly_raids_summary") {
+        await handleWeeklyRaidsSummary(interaction);
+      }
+
+      if (interaction.commandName === "gear_check") {
+        await handleGearCheck(interaction);
+      }
+      if (interaction.commandName === "debuffs") {
+        await handleDebuffs(interaction);
+      }
+
+      if (interaction.commandName === "guild_logs") {
+        await handleLongSummary(interaction, client);
+      }
+
+      if (interaction.commandName === "add") {
+        const userName = interaction.user.username;
+        const { discordId, playerName } = await getCharNameByDiscordUsername(userName);
+
+        if (!playerName) {
+          return await interaction.followUp({
+            content: `Character name for ${discordId} not found. Please contact leadership`,
+          });
+        }
+
+        await interaction.followUp({ content: playerName, ephemeral: true });
+      }
+
+      if (interaction.commandName === "rename_character") {
+        const userName = interaction.user.username;
+        const existingCharacterName = interaction.options.get("existing_character_name")?.value as string;
+        const newCharacterName = interaction.options.get("new_character_name")?.value as string;
+
+        const { discordId, playerName } = await getCharNameByDiscordUsername(userName);
+
+        if (!playerName) {
+          return await interaction.followUp({
+            content: `Character name for ${discordId} not found. Please contact leadership`,
+          });
+        }
+
+        const playerCachedCharacterNames = raidRosterCharactersMap.get(playerName)?.map(({ name }) => name);
+        if (!playerCachedCharacterNames?.includes(existingCharacterName)) {
+          return await interaction.followUp({
+            content: `Existing character names not included in list`,
+            ephemeral: true,
+          });
+        }
+
+        await findRowAndUpdateCharacterName(existingCharacterName, newCharacterName);
         return await interaction.followUp({
-          content: `Existing character names not included in list`,
+          content: `Updated character name from ${existingCharacterName} to ${newCharacterName}`,
           ephemeral: true,
         });
       }
 
-      await findRowAndUpdateCharacterName(existingCharacterName, newCharacterName);
-      return await interaction.followUp({
-        content: `Updated character name from ${existingCharacterName} to ${newCharacterName}`,
-        ephemeral: true,
-      });
+      if (interaction.commandName === "absence") {
+        const absenceType = interaction.options.get("absence_type")?.value as string;
+        const userId = interaction.user.id;
+
+        userSelections.set(userId, { absenceType });
+
+        const { startDateMenu, buttons } = getPaginatedMenu(0);
+        currentPage = 0;
+
+        await interaction.followUp({
+          content: "Please select a start date:",
+          components: [startDateMenu, buttons],
+        });
+      }
+
+      if (interaction.commandName === "weekly_essentials") {
+        await handleWeeklyEssentialsRaidsSummary(interaction);
+      }
+
+      if (interaction.commandName === "ping-roster") {
+        return await handlePingRoster(interaction, client);
+      }
+
+      if (interaction.commandName === "create_raid") {
+        return await handleCreateRaid(interaction);
+      }
     }
 
-    if (interaction.commandName === "absence") {
-      const absenceType = interaction.options.get("absence_type")?.value as string;
+    if (interaction.isButton()) {
+      if (interaction.customId === "prev") currentPage--;
+      if (interaction.customId === "next") currentPage++;
+
       const userId = interaction.user.id;
+      const prevUserSelection = userSelections.get(userId);
 
-      userSelections.set(userId, { absenceType });
+      const { startDateMenu, endDateMenu, buttons } = getPaginatedMenu(currentPage); // Get updated menu options
 
-      const { startDateMenu, buttons } = getPaginatedMenu(0);
-      currentPage = 0;
+      if (!prevUserSelection?.startDate) {
+        await interaction.update({
+          content: "Please select a start date:",
+          components: [startDateMenu, buttons],
+        });
+      } else {
+        const content = `You selected start date: ${prevUserSelection?.startDate}. Now select an end date:`;
 
+        await interaction.update({
+          content,
+          components: [endDateMenu, buttons],
+        });
+      }
+    }
+
+    if (interaction.isStringSelectMenu()) {
+      if (interaction.customId === "startDate") {
+        if (interaction.values.length < 1) {
+          await interaction.update({
+            content: "Please select a start date.",
+            components: [],
+          });
+          return;
+        }
+
+        const { endDateMenu, buttons } = getPaginatedMenu(0);
+        const userId = interaction.user.id;
+        const prevUserSelection = userSelections.get(userId);
+
+        const startDateSelection = interaction.values[0];
+        userSelections.set(userId, { ...prevUserSelection, startDate: startDateSelection });
+        currentPage = 0;
+        await interaction.update({
+          content: `You selected start date: ${interaction.values[0]}. Now select an end date:`,
+          components: [endDateMenu, buttons],
+        });
+      }
+
+      // Handle the end date selection
+      if (interaction.customId === "endDate") {
+        if (interaction.values.length < 1) {
+          await interaction.update({
+            content: "Please select an end date.",
+          });
+          return;
+        }
+
+        const userId = interaction.user.id;
+        const endDateSelection = interaction.values[0];
+        const prevUserSelection = userSelections.get(userId);
+        userSelections.set(userId, { ...prevUserSelection, endDate: endDateSelection });
+
+        const { startDate, endDate, absenceType } = userSelections.get(userId) || {};
+
+        const isEndDateEarlierThanStartDate = new Date(extractDate(endDate!)) < new Date(extractDate(startDate!));
+
+        if (isEndDateEarlierThanStartDate) {
+          return await interaction.update({
+            content: `End date later than start date`,
+            components: [],
+          });
+        }
+
+        await interaction.update({
+          content: `You selected start date: ${startDate} and end date: ${endDate}. ${absenceType}`,
+          components: [],
+        });
+        userSelections.delete(userId);
+      }
+    }
+  } catch (error: any) {
+    console.log({ error }, "oops, error happened!");
+    if (interaction.isCommand()) {
       await interaction.followUp({
-        content: "Please select a start date:",
-        components: [startDateMenu, buttons],
+        content: "Something went wrong. Please run the command again..." + `Error message - ${error?.message}`,
       });
-    }
-
-    if (interaction.commandName === "weekly_essentials") {
-      await handleWeeklyEssentialsRaidsSummary(interaction);
-    }
-
-    if (interaction.commandName === "ping-roster") {
-      return await handlePingRoster(interaction, client);
-    }
-
-    if (interaction.commandName === "create_raid") {
-      return await handleCreateRaid(interaction);
-    }
-  }
-
-  if (interaction.isButton()) {
-    if (interaction.customId === "prev") currentPage--;
-    if (interaction.customId === "next") currentPage++;
-
-    const userId = interaction.user.id;
-    const prevUserSelection = userSelections.get(userId);
-
-    const { startDateMenu, endDateMenu, buttons } = getPaginatedMenu(currentPage); // Get updated menu options
-
-    if (!prevUserSelection?.startDate) {
-      await interaction.update({
-        content: "Please select a start date:",
-        components: [startDateMenu, buttons],
-      });
-    } else {
-      const content = `You selected start date: ${prevUserSelection?.startDate}. Now select an end date:`;
-
-      await interaction.update({
-        content,
-        components: [endDateMenu, buttons],
-      });
-    }
-  }
-
-  if (interaction.isStringSelectMenu()) {
-    if (interaction.customId === "startDate") {
-      if (interaction.values.length < 1) {
-        await interaction.update({
-          content: "Please select a start date.",
-          components: [],
-        });
-        return;
-      }
-
-      const { endDateMenu, buttons } = getPaginatedMenu(0);
-      const userId = interaction.user.id;
-      const prevUserSelection = userSelections.get(userId);
-
-      const startDateSelection = interaction.values[0];
-      userSelections.set(userId, { ...prevUserSelection, startDate: startDateSelection });
-      currentPage = 0;
-      await interaction.update({
-        content: `You selected start date: ${interaction.values[0]}. Now select an end date:`,
-        components: [endDateMenu, buttons],
-      });
-    }
-
-    // Handle the end date selection
-    if (interaction.customId === "endDate") {
-      if (interaction.values.length < 1) {
-        await interaction.update({
-          content: "Please select an end date.",
-        });
-        return;
-      }
-
-      const userId = interaction.user.id;
-      const endDateSelection = interaction.values[0];
-      const prevUserSelection = userSelections.get(userId);
-      userSelections.set(userId, { ...prevUserSelection, endDate: endDateSelection });
-
-      const { startDate, endDate, absenceType } = userSelections.get(userId) || {};
-
-      const isEndDateEarlierThanStartDate = new Date(extractDate(endDate!)) < new Date(extractDate(startDate!));
-
-      if (isEndDateEarlierThanStartDate) {
-        return await interaction.update({
-          content: `End date later than start date`,
-          components: [],
-        });
-      }
-
-      await interaction.update({
-        content: `You selected start date: ${startDate} and end date: ${endDate}. ${absenceType}`,
-        components: [],
-      });
-      userSelections.delete(userId);
     }
   }
 });
@@ -428,8 +444,9 @@ const handleGearCheck = async (interaction: Interaction<CacheType>) => {
   const providedLogId = interaction.options.get("log_id")?.value as string;
   const logId = extractLogId(providedLogId) as string;
   const expansion = interaction.options.get("expansion")?.value as string;
+  const strictCheck = interaction.options.get("strict_check")?.value as boolean;
 
-  const content = await generateGearCheck(logId, expansion);
+  const content = await generateGearCheck(logId, expansion, strictCheck);
 
   await sendLongMessage(gearCheckChannel, content);
 
@@ -498,3 +515,9 @@ async function getCharNameByDiscordUsername(username: string) {
 
   return { discordId, playerName };
 }
+
+const port = 3000;
+
+app.listen(port, () => {
+  console.log(`OAuth server running at http://localhost:${port}`);
+});

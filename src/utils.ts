@@ -73,3 +73,8 @@ export function extractRaidName(input: string): string {
   const match = input.match(regex);
   return match ? match[1].trim() : "";
 }
+
+export function extractNameFromTricks(input: string) {
+  const match = input.match(/\(([^)]+)\)/);
+  return match ? match[1] : null;
+}

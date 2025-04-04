@@ -6,6 +6,9 @@ import {
   GENERAL_GEAR_SLOT_TO_CHECK,
   WEAPONS_SLOTS_STRING,
   PHYSICAL_GEAR_SLOT_TO_CHECK,
+  POSSIBLE_ENCHANTS,
+  WRIST_POSSIBLE_ENCHANT,
+  CHEST_3_STATS,
 } from "../constants";
 import { sortByValueDescending } from "../utils";
 import { fetchCasts, fetchDispels, fetchFights, fetchTotalCasts, getValidFights } from "../warcraftLogs";
@@ -16,11 +19,12 @@ interface PlayerData {
   [slot: string]: {
     enchant?: string;
     sharpeningStone?: string;
+    class?: string;
   };
 }
 
-export async function generateGearCheck(logId: string, expansion: string): Promise<string> {
-  const playersData: { [key: string]: PlayerData } = {};
+export async function generateGearCheck(logId: string, expansion: string, strictCheck: boolean): Promise<string> {
+  const playersData: { [name: string]: PlayerData } = {};
   const sundersByPlayer: { [key: string]: number } = {};
   const dispelsByPlayer: { [key: string]: number } = {};
   const warriors: Set<string> = new Set();
@@ -73,6 +77,39 @@ export async function generateGearCheck(logId: string, expansion: string): Promi
         };
       }
     });
+
+    if (strictCheck) {
+      entry.gear.forEach((item) => {
+        const isChest = 4 === item.slot;
+        const noEnchant = !item.permanentEnchantName;
+        const badEnchant = CHEST_3_STATS === item.permanentEnchantName;
+        if (isChest && (noEnchant || badEnchant)) {
+          playersData[entry.name] = {
+            ...playersData[entry.name],
+            [ITEM_SLOTS[item.slot]]: {
+              enchant: badEnchant ? item.permanentEnchantName : NONE_ENCHANT,
+            },
+          };
+        }
+      });
+    }
+
+    if (entry.type === "Warrior" && strictCheck) {
+      entry.gear.forEach((item) => {
+        const isWrist = 8 === item.slot;
+        const noEnchant = !item.permanentEnchantName;
+        const badEnchant = !WRIST_POSSIBLE_ENCHANT.includes(item.permanentEnchantName!);
+        if (isWrist && (noEnchant || badEnchant)) {
+          playersData[entry.name] = {
+            ...playersData[entry.name],
+            [ITEM_SLOTS[item.slot]]: {
+              enchant: badEnchant ? item.permanentEnchantName : NONE_ENCHANT,
+            },
+          };
+        }
+      });
+    }
+
     if (entry.type === "Warrior" || entry.type === "Rogue" || entry.type === "Hunter") {
       entry.gear.forEach((item) => {
         const shouldCheckSlot = PHYSICAL_GEAR_SLOT_TO_CHECK.includes(item.slot);
@@ -113,7 +150,7 @@ export async function generateGearCheck(logId: string, expansion: string): Promi
     }),
   );
 
-  const formattedPlayerData = processPlayerData(playersData);
+  const formattedPlayerData = processPlayerData(playersData, strictCheck, warriors);
 
   const sortedSunders = sortByValueDescending(sundersByPlayer);
   const sortedDispels = sortByValueDescending(dispelsByPlayer);
@@ -155,7 +192,21 @@ function formatItemSlot(slot: string, data: { enchant?: string; sharpeningStone?
   return formatted;
 }
 
-function processPlayerData(players: { [name: string]: PlayerData }): string {
+function formatHeadOrLegSlot(slot: string, data: { enchant?: string; sharpeningStone?: string }) {
+  const isNoneEnchant = data.enchant === NONE_ENCHANT;
+  if (isNoneEnchant) {
+    return `${slot.charAt(0).toUpperCase() + slot.slice(1)} enchant :${NONE_ENCHANT}\n`;
+  }
+  if (!POSSIBLE_ENCHANTS.includes(data.enchant!)) {
+    return `${slot.charAt(0).toUpperCase() + slot.slice(1)} : Enchant - ${data.enchant!}\n`;
+  }
+}
+
+function processPlayerData(
+  players: { [name: string]: PlayerData },
+  strictCheck: boolean,
+  warriors: Set<string>,
+): string {
   let result = "";
 
   for (const playerName in players) {
@@ -169,14 +220,18 @@ function processPlayerData(players: { [name: string]: PlayerData }): string {
       const isMissingEnchant = slotData.enchant === NONE_ENCHANT;
       const isOffHand = slot === ITEM_SLOTS[16];
       const isMissingStoneOrPoison = isOffHand && slotData.sharpeningStone === NONE_ENCHANT;
+      const isLegOrHead = slot === ITEM_SLOTS[0] || slot === ITEM_SLOTS[6];
 
       // For weapon slots: only show if enchant is missing, sharpening stone/poison is missing, or enchant isn't Crusader
       if (isWeaponSlot && (isMissingEnchant || isMissingStoneOrPoison || !isCrusader)) {
         playerResult += `${formatItemSlot(slot, slotData)}\n`;
       }
       // For non-weapon slots: always display the slot
-      else if (!isWeaponSlot) {
+      else if (!isWeaponSlot && !isLegOrHead) {
         playerResult += `${formatItemSlot(slot, slotData)}\n`;
+      }
+      if (isLegOrHead && strictCheck) {
+        playerResult += formatHeadOrLegSlot(slot, slotData);
       }
     }
 

@@ -12,10 +12,26 @@ import {
   tableQueryDamageTaken,
   totalCastsQuery,
 } from "./queries";
-import { BuffEvent, EFFECTIVE_SUNDERS_FILTER, EXPANSIONS, Fight, PlayerMap, WIPES_CUT_OFF } from "./constants";
+import {
+  BuffEvent,
+  EFFECTIVE_SUNDERS_FILTER,
+  Fight,
+  PlayerMap,
+  SUB_DOMAINS_TO_EXPANSION,
+  WIPES_CUT_OFF,
+} from "./constants";
 import { RaidData } from "./types";
 
-let accessToken: string | null = null;
+let accessToken: string | null = process.env.ACCESS_TOKEN!;
+let refreshToken: string | null = null;
+
+// Function to update tokens
+export function updateTokens(newAccessToken: string, newRefreshToken?: string) {
+  accessToken = newAccessToken;
+  if (newRefreshToken) {
+    refreshToken = newRefreshToken;
+  }
+}
 
 export async function authenticateWarcraftLogs() {
   try {
@@ -29,36 +45,26 @@ export async function authenticateWarcraftLogs() {
         "Content-Type": "application/x-www-form-urlencoded",
       },
     });
-    accessToken = response.data.access_token;
+    if (!accessToken) {
+      updateTokens(response.data.access_token);
+    }
     console.log("Authenticated with Warcraft Logs API");
   } catch (error) {
     console.error("Failed to authenticate with Warcraft Logs:", error);
   }
 }
 
-// Function to get the access token (you might already have this from before)
-export function getAccessToken(): string | null {
-  if (!accessToken) {
-    console.error("Access token is missing.");
-    return null;
-  }
-  return accessToken;
-}
-
 // Reusable function for sending fetch requests to Warcraft Logs API
 async function fetchWarcraftLogsData(query: string, variables: any) {
-  if (!accessToken) {
-    console.error("Access token is missing.");
-    return null;
-  }
-
+  // https://classic.warcraftlogs.com/api/v2/user
+  // https://www.warcraftlogs.com/api/v2/client
   try {
     const response = await axios.post(
-      "https://www.warcraftlogs.com/api/v2/client",
+      "https://classic.warcraftlogs.com/api/v2/user",
       { query, variables },
       {
         headers: {
-          Authorization: `Bearer ${accessToken}`,
+          Authorization: `Bearer ${process.env.ACCESS_TOKEN}`,
           "Content-Type": "application/json",
         },
       },
@@ -70,8 +76,6 @@ async function fetchWarcraftLogsData(query: string, variables: any) {
     return null;
   }
 }
-
-// Refactor fetch methods to use the reusable function
 
 export async function fetchFights(logId: string): Promise<any> {
   const data = await fetchWarcraftLogsData(fightsQuery, { logId });
@@ -165,8 +169,9 @@ export async function fetchPlayerInfo(logId: string): Promise<PlayerMap> {
 }
 
 export async function generateWarcraftLogsUrl(logId: string, filter: string, options = 38, expansion: string) {
-  const subdomain = expansion === EXPANSIONS.CATA ? "classic" : "fresh";
-  const baseUrl = `https://${subdomain}.warcraftlogs.com/reports/`;
+  const subdomain = SUB_DOMAINS_TO_EXPANSION[expansion];
+
+  const baseUrl = !subdomain ? `https://warcraftlogs.com/reports/` : `https://${subdomain}.warcraftlogs.com/reports/`;
 
   // Create the URL with the provided expression and options
   const url = `${baseUrl}${logId}#boss=-3&difficulty=0&type=damage-taken&pins=2%24Off%24%23244F4B%${filter ? `24expression%24${encodeURIComponent(filter)}` : ""}&options=${options}&cutoff=${WIPES_CUT_OFF}`;
@@ -176,8 +181,8 @@ export async function generateWarcraftLogsUrl(logId: string, filter: string, opt
 }
 
 export async function createDmgDoneUrl(logId: string, filter: string, expansion: string): Promise<string> {
-  const subdomain = expansion === EXPANSIONS.CATA ? "classic" : "fresh";
-  const baseUrl = `https://${subdomain}.warcraftlogs.com/reports/`;
+  const subdomain = SUB_DOMAINS_TO_EXPANSION[expansion];
+  const baseUrl = !subdomain ? `https://warcraftlogs.com/reports/` : `https://${subdomain}.warcraftlogs.com/reports/`;
 
   const encodedExpression = encodeURIComponent(filter);
   const url = `${baseUrl}${logId}#boss=-3&difficulty=0&cutoff=${WIPES_CUT_OFF}&pins=2%24Off%24%23244F4B%${filter ? `24expression%24${encodedExpression}` : ""}`;
@@ -227,7 +232,7 @@ export async function fetchBuffsData(logId: string, startTime: number, endTime: 
   return data.reportData.report.events.data as BuffEvent[];
 }
 
-export async function getGuildLogs(guildID = 475769, startTime = 1724976000000, endTime = 1730937600000) {
+export async function getGuildLogs(guildID = 475769, startTime = 1731024000000, endTime = new Date().getTime()) {
   const allReports: RaidData[] = [];
   let currentPage = 1;
 

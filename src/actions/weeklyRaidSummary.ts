@@ -21,6 +21,10 @@ export async function generateWeeklyRaidSummary(logIds: string[], expansion: EXP
   let totalTimeBetweenRaids = 0;
   const splitNights = new Set<number>();
 
+  if (expansion === EXPANSIONS.RETAIL) {
+    return "";
+  }
+
   const spreadsheetId = EXPANSION_TO_SHEET[expansion];
 
   await fetchRaidRoster(spreadsheetId);
@@ -38,7 +42,11 @@ export async function generateWeeklyRaidSummary(logIds: string[], expansion: EXP
   await Promise.all(
     logIds.map(async (logId) => {
       const data = await fetchPlayerInfo(logId);
-      playersPerLog[logId] = data;
+      const encrichedData: { [key: string]: string } = {};
+      for (const [key, value] of Object.entries(data)) {
+        encrichedData[key] = `${value}_${logId}`;
+      }
+      playersPerLog[logId] = encrichedData;
     }),
   );
 
@@ -78,7 +86,8 @@ export async function generateWeeklyRaidSummary(logIds: string[], expansion: EXP
         deaths += events?.data.length || 0;
         if (events.data.length) {
           events.data.forEach((deathEvent: any) => {
-            const playerName = playersPerLog[code][deathEvent.targetID];
+            const enrichedPlayerName = playersPerLog[code][deathEvent.targetID];
+            const playerName = enrichedPlayerName.split("_")[0];
             const absoluteCharName = getKeyByCharacterName(playerName);
             if (deathsByPlayer[absoluteCharName]) {
               deathsByPlayer[absoluteCharName]++;
@@ -116,11 +125,12 @@ export async function generateWeeklyRaidSummary(logIds: string[], expansion: EXP
   const allPlayersParticipatedSet = new Set(allPlayersParticipated);
 
   allPlayersParticipatedSet.forEach((player) => {
-    const playerName = getKeyByCharacterName(player);
-    if (raidsPerPlayer[playerName]) {
-      raidsPerPlayer[playerName]++;
+    const playerName = player.split("_")[0];
+    const absolutePlayerName = getKeyByCharacterName(playerName);
+    if (raidsPerPlayer[absolutePlayerName]) {
+      raidsPerPlayer[absolutePlayerName]++;
     } else {
-      raidsPerPlayer[playerName] = 1;
+      raidsPerPlayer[absolutePlayerName] = 1;
     }
   });
 
