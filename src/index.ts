@@ -516,8 +516,6 @@ async function getCharNameByDiscordUsername(username: string) {
   return { discordId, playerName };
 }
 
-const port = 3000;
-
-app.listen(port, () => {
-  console.log(`OAuth server running at http://localhost:${port}`);
+app.listen(process.env.PORT || 3000, () => {
+  console.log(`OAuth server running at http://localhost:${process.env.PORT}`);
 });
